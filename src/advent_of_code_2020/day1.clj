@@ -39,3 +39,15 @@
                          [x y z]))]
     [x y z (* x y z)]))
 
+
+; faster way?
+; sorted = sort(input) 
+; for x in input:
+;   y = binary_search(sorted, 2020 - x):
+;   if y is found:
+;      return x * y
+;
+; part2?
+; for x in input:
+;   y = 2020 - x
+;   repeat above but substitute 2020 for y
