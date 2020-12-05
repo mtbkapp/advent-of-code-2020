@@ -48,10 +48,8 @@
         :let [x (+ col dx)
               y (+ row dy)]
         :when (and (not= [x y] [col row])
-                   (<= 0 x)
-                   (<= 0 y)
-                   (< x 8)
-                   (< x 128))]
+                   (< -1 x 8)
+                   (< -1 y 128))]
     {:row y :col x}))
 
 
