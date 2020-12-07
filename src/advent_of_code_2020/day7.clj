@@ -82,3 +82,21 @@
       (disj ["shiny" "gold"])
       (count)))
 
+
+(defn count-bags*
+  [g start]
+  (inc (reduce (fn [c [n color]]
+                 (+ c (* n (count-bags* g color))))
+               0
+               (get g start))))
+
+
+(defn count-bags
+  [g start]
+  (dec (count-bags* g start)))
+
+
+#_(prn (solve-part2))
+(defn solve-part2
+  []
+  (count-bags (into {} (read-input)) ["shiny" "gold"]))
