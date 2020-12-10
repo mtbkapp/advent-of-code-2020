@@ -82,12 +82,12 @@
           (range (count chain))))
 
 
-(count (bfs (chain test-input-1)))
+#_(count (clojure.pprint/pprint (bfs (chain test-input-1))))
 (defn bfs
   ([start] (bfs #{} (conj (clojure.lang.PersistentQueue/EMPTY) start)))
   ([visited q]
    (if (empty? q)
      visited
-     (let [v (peek q)]
-       (recur (conj visited v)
+     (let [v (peek q)]; TODO need to check for visisted!
+       (recur (conj visited (vec v)) ; TODO can't put an array in the set and get equality semantics
               (into (pop q) (adjacent v)))))))
