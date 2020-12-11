@@ -15,7 +15,7 @@
 
 (defn solve-part-1*
   [adapters]
-  (->> input
+  (->> adapters
        (apply sorted-set)
        add-ends
        (partition 2 1)
@@ -71,7 +71,7 @@
        (<= 1 (- (aget chain (inc i)) (aget chain (dec i))) 3)))
 
 
-#_(adjacent (chain test-input-1))
+#_(map vec (adjacent (chain test-input-1)))
 (defn adjacent
   [chain]
   (reduce (fn [adj i]
@@ -82,12 +82,97 @@
           (range (count chain))))
 
 
-#_(count (clojure.pprint/pprint (bfs (chain test-input-1))))
+#_(count (bfs (chain test-input-1)))
+#_(count (bfs (chain test-input-2)))
+#_(prn (count (bfs (chain input))))
 (defn bfs
   ([start] (bfs #{} (conj (clojure.lang.PersistentQueue/EMPTY) start)))
   ([visited q]
    (if (empty? q)
      visited
-     (let [v (peek q)]; TODO need to check for visisted!
-       (recur (conj visited (vec v)) ; TODO can't put an array in the set and get equality semantics
-              (into (pop q) (adjacent v)))))))
+     (let [v (peek q)
+           vv (vec v)]
+       (if (contains? visited vv)
+         (recur visited (pop q))
+         (recur (conj visited vv)
+                (into (pop q) (adjacent v))))))))
+
+
+(def test-input-arrs
+  #{[0 1 4 5 6 7 10 11 12 15 16 19 22]
+    [0 1 4 5 6 7 10 12 15 16 19  22]
+    [0 1 4 5 7 10 11 12 15 16 19  22]
+    [0 1 4 5 7 10 12 15 16 19  22]
+    [0 1 4 6 7 10 11 12 15 16 19  22]
+    [0 1 4 6 7 10 12 15 16 19 22]
+    [0 1 4 7 10 11 12 15 16 19  22]
+    [0 1 4 7 10 12 15 16 19 22]})
+
+
+
+
+
+
+(sort test-input-1)
+
+#_(find-next 4 (rest (rest (sort test-input-1))))
+(defn find-next
+  [curr rest-adapters]
+  (take-while (fn [a]
+                (<= 1 (- a curr) 3))
+              rest-adapters))
+
+
+(add-ends (apply sorted-set test-input-1))
+(defn build-graph
+  [input]
+  (reduce (fn [g input]
+            
+            )
+          (add-ends (apply sorted-set input))))
+
+
+; how many paths are there in a graph from the plug to the device through the adapters?
+
+
+(defn build-input2 
+  [input]
+  (let [mx (reduce max input)]
+    (sort (into input [0 (+ mx 3)]))))
+
+(defn next-adapters
+  [[a :as adapters]]
+  (filter (fn [[x :as na]]
+            (if (not-empty na)
+              (<= 1 (- x a) 3)))
+          (map #(drop % adapters) [1 2 3])))
+
+#_(next-adapters (vector 0 1 4 5 6 7 10)) ; [[1 4 5 6 7 10]]
+#_(next-adapters (vector 1 4 5 6 7 10)) ; [[4 5 6 7 10]] 
+#_(next-adapters (vector 4 5 6 7 10)) ;[[5 6 7 10] [6 7 10] [7 10]]
+#_(next-adapters [6 7 10])
+#_(next-adapters [19 22])
+#_(next-adapters [22])
+
+
+#_(go (vector 0 1 4 5 6 7 10 11 12 15 16 19 22))
+#_(go (vector 10 11 12 15 16 19 22))
+#_(go (vector 19 22))
+#_(go (vector 22))
+#_(go (vector))
+
+#_(go (build-input2 test-input-1))
+#_(time (go (build-input2 test-input-2)))
+#_(prn (time (go (build-input2 input))))
+
+(declare go)
+(defn go*
+  [input]
+  (if (< (count input) 2)
+    1
+    (reduce + (map go (next-adapters input)))))
+(def go (memoize go*))
+
+
+
+
