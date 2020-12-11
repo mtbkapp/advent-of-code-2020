@@ -108,47 +108,6 @@ L.LLLLL.LL")
        (is (= ~s0 ~s1)))))
 
 
-(deftest compare-states
-  (compare-states
-    (next-state (init test-input))
-    (init test-input1))
-  (compare-states
-    (next-state (next-state (init test-input)))
-    (init test-input2))
-  (compare-states
-    (next-state (next-state (next-state (init test-input))))
-    (init test-input3))
-  (compare-states
-    (next-state (next-state (next-state (next-state (init test-input)))))
-    (init test-input4))
-  (compare-states
-    (next-state (next-state (next-state (next-state (next-state (init test-input))))))
-    (init test-input5))
-  (compare-states
-    (next-state (init test-input5))
-    (init test-input5)))
-
-
-(defn count-occupied
-  [{:keys [seats]}]
-  (count (filter val seats)))
-
-
-(defn stabilize
-  [state]
-  (let [nxt (next-state state)]
-    (if (= state nxt)
-      nxt
-      (recur nxt))))
-
-
-#_(prn (solve-part1 test-input))
-#_(prn (solve-part1 real-input))
-(defn solve-part1
-  [input]
-  (count-occupied (stabilize (init input))))
-
-
 (def test-input1
   "#.##.##.##
 #######.##
@@ -209,6 +168,47 @@ L.#.L..#..
 #.LLLLLL.L
 #.#L#L#.##")
 
+(deftest compare-states
+  (compare-states
+    (next-state (init test-input))
+    (init test-input1))
+  (compare-states
+    (next-state (next-state (init test-input)))
+    (init test-input2))
+  (compare-states
+    (next-state (next-state (next-state (init test-input))))
+    (init test-input3))
+  (compare-states
+    (next-state (next-state (next-state (next-state (init test-input)))))
+    (init test-input4))
+  (compare-states
+    (next-state (next-state (next-state (next-state (next-state (init test-input))))))
+    (init test-input5))
+  (compare-states
+    (next-state (init test-input5))
+    (init test-input5)))
+
+
+(defn count-occupied
+  [{:keys [seats]}]
+  (count (filter val seats)))
+
+
+(defn stabilize
+  [state]
+  (let [nxt (next-state state)]
+    (if (= state nxt)
+      nxt
+      (recur nxt))))
+
+
+#_(prn (solve-part1 test-input))
+#_(prn (solve-part1 real-input))
+(defn solve-part1
+  [input]
+  (count-occupied (stabilize (init input))))
+
+
 
 (defn vec*
   [mag v]
@@ -226,8 +226,11 @@ L.#.L..#..
        (< -1 y height)))
 
 
-; TODO better name, nil means no seat in that dir, true seat occupied in dir, false seat not occupied in dir 
 (defn occupied-in-dir?
+  "Returns
+    true - if there is a seat in the given direction that is occupied
+    false - if there is a seat in the given direction that is not occupied
+    nil - if there is no seat in the given direction"
   [{:keys [seats width height]} seat dir]
   (loop [mag 1]
     (let [pos (vec+ seat (vec* mag dir))]
@@ -258,22 +261,69 @@ L.#.L..#..
 #.#.#.#
 .##.##.")
 
+
+(def part2-test-input3
+  ".............
+.L.L.#.#.#.#.
+.............")
+
 (def dirs (for [dx [-1 0 1]
                 dy [-1 0 1]
                 :when (not (and (zero? dx) (zero? dy)))]
             [dx dy]))
 
-(prn dirs)
 
-(doseq [d dirs]
-  (prn
-    (occupied-in-dir?
-      (init part2-test-input2)
-      [3 3]
-      d)))
+(deftest test-occupied-in-dir?
+  (doseq [d dirs]
+    (is (nil? (occupied-in-dir? (init part2-test-input2) [3 3] d))))
+  (doseq [d dirs]
+    (is (true? (occupied-in-dir? (init part2-test-input1) [3 4] d))))
+  (let [state (init part2-test-input3)]
+    (is (false? (occupied-in-dir? state [1 1] [1 0])))
+    (is (true? (occupied-in-dir? state [3 1] [1 0])))
+    (is (false? (occupied-in-dir? state [3 1] [-1 0])))
+    (doseq [d (disj (set dirs) [1 0])]
+      (is (nil? (occupied-in-dir? state [1 1] d))))
+    (doseq [d (disj (set dirs) [-1 0] [1 0])]
+      (is (nil? (occupied-in-dir? state [3 1] d))))))
 
 
 (defn seen-from
-  [{:keys [seats]} [x y]]
+  [state seat]
+  (frequencies
+    (into []
+          (comp (map #(occupied-in-dir? state seat %))
+                (remove nil?))
+          dirs)))
 
-  )
+
+(defn next-state2
+  [state]
+  (update state
+          :seats
+          #(reduce (fn [next-seats [seat curr-state]]
+                     (let [occupied (get (seen-from state seat) true 0)]
+                       (assoc next-seats
+                              seat 
+                              (cond (and (not curr-state)
+                                         (zero? occupied)) true
+                                    (and curr-state
+                                         (<= 5 occupied)) false
+                                    :else curr-state))))
+                   {}
+                   %)))
+
+
+#_(->> (iterate next-state2 (init test-input))
+       (take 100)
+       (partition 2 1)
+       (map #(apply = %))
+       )
+
+
+
+
+
+
+
+
