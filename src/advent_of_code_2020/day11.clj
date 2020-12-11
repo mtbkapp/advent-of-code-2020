@@ -313,6 +313,14 @@ L.#.L..#..
                    {}
                    %)))
 
+(count-occupied (stabilize2 (init test-input)))
+(count-occupied (stabilize2 (init real-input)))
+(defn stabilize2
+  [state]
+  (let [nxt (next-state2 state)]
+    (if (= state nxt)
+      nxt
+      (recur nxt))))
 
 #_(->> (iterate next-state2 (init test-input))
        (take 100)
