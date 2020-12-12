@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day7
+(ns advent-of-code-2020.day07
   (:require [advent-of-code-2020.utils :as utils]
             [clojure.string :as string]
             [instaparse.core :as insta]))
@@ -67,7 +67,7 @@
 
 (defn read-input
   ([]
-   (utils/read-lines read-xform "day7.txt"))
+   (utils/read-lines read-xform "day07.txt"))
   ([input]
    (into [] read-xform (string/split-lines input))))
 

@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day2
+(ns advent-of-code-2020.day02
   (:require [advent-of-code-2020.utils :as utils]
             [instaparse.core :as insta]))
 
@@ -29,7 +29,7 @@
   [valid?]
   (-> (utils/read-lines (comp (map parser)
                               (map valid?))
-                        "day2.txt")
+                        "day02.txt")
       (frequencies)
       (get true)))
 

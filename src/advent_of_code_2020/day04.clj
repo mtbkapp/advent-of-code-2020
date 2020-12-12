@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day4
+(ns advent-of-code-2020.day04
   (:require [clojure.java.io :as io]
             [clojure.set :as sets]
             [clojure.spec.alpha :as spec]
@@ -36,7 +36,7 @@
 
 
 (defn read-input
-  ([] (read-input (slurp (io/resource "day4.txt"))))
+  ([] (read-input (slurp (io/resource "day04.txt"))))
   ([input]
    (parse (string/trim input))))
 

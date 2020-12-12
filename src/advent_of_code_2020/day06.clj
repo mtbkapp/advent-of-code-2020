@@ -1,11 +1,11 @@
-(ns advent-of-code-2020.day6
+(ns advent-of-code-2020.day06
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.set :as sets]))
 
 
 
-(def input (slurp (io/resource "day6.txt")))
+(def input (slurp (io/resource "day06.txt")))
 
 
 (defn sum-groups

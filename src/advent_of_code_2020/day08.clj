@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day8
+(ns advent-of-code-2020.day08
   (:require [advent-of-code-2020.utils :as utils]))
 
 
@@ -13,7 +13,7 @@
 
 (defn read-input
   []
-  (utils/read-lines (map decode-instr) "day8.txt"))
+  (utils/read-lines (map decode-instr) "day08.txt"))
 
 
 (defn run-prg

@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day9
+(ns advent-of-code-2020.day09
   (:require [advent-of-code-2020.utils :as utils]))
 
 
@@ -26,7 +26,7 @@
         (two-combos g)))
 
 
-(def real-input (utils/read-lines (map #(Long/valueOf %)) "day9.txt"))
+(def real-input (utils/read-lines (map #(Long/valueOf %)) "day09.txt"))
 (def test-input [35 20 15 25 47 40 62 55 65 95 102 117 150 182 127 219 299 277 309 576])
 
 #_(prn (solve-part1 real-input 25))

@@ -1,21 +1,19 @@
-(ns advent-of-code-2020.day1
+(ns advent-of-code-2020.day01
   (:require [clojure.java.io :as io]))
 
 
 (defn read-entries
   []
-  (with-open [rdr (io/reader (io/resource "day1.txt"))]
+  (with-open [rdr (io/reader (io/resource "day01.txt"))]
     (into []
           (map #(Long/valueOf %))
           (line-seq rdr))))
 
 
-#_(distinct? (read-entries))
 
-
-#_(prn (solve-part-1))
+#_(prn (solve-part-1 (read-entries)))
 (defn solve-part-1
-  []
+  [entries]
   (let [es (read-entries)
         [x y] (first (for [x entries
                            y entries
@@ -25,11 +23,10 @@
     [x y (* x y)]))
 
 
-#_(prn (solve-part-2))
+#_(prn (solve-part-2 (read-entries)))
 (defn solve-part-2
-  []
-  (let [es (read-entries)
-        [x y z] (first (for [x entries
+  [entries]
+  (let [[x y z] (first (for [x entries
                              y entries
                              z entries
                              :when (and (not= x y) 

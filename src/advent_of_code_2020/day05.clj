@@ -1,4 +1,4 @@
-(ns advent-of-code-2020.day5
+(ns advent-of-code-2020.day05
   (:require [advent-of-code-2020.utils :as utils]
             [clojure.set :as sets]))
 
@@ -38,7 +38,7 @@
 #_(prn (solve-part1))
 (defn solve-part1
   []
-  (reduce max (utils/read-lines xform "day5.txt")))
+  (reduce max (utils/read-lines xform "day05.txt")))
 
 
 (defn adj-seats
@@ -64,7 +64,7 @@
   []
   (let [taken-seats (set (utils/read-lines (comp (map read-ln)
                                                  (map get-seat))
-                                           "day5.txt"))]
+                                           "day05.txt"))]
     (-> (for [row (range 128)
               col (range 8)
               :let [seat {:row row :col col}]

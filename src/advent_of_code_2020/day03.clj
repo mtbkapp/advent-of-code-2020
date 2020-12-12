@@ -1,10 +1,10 @@
-(ns advent-of-code-2020.day3
+(ns advent-of-code-2020.day03
   (:require [advent-of-code-2020.utils :as utils]))
 
 
 (defn read-input
   []
-  (let [m (utils/read-lines (comp (map vec)) "day3.txt")]
+  (let [m (utils/read-lines (comp (map vec)) "day03.txt")]
     {:width (count (first m))
      :height (count m)
      :map m}))
