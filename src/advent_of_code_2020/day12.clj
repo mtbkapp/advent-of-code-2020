@@ -91,7 +91,62 @@ F11")
 #_(prn (solve-part1 test-input))
 (defn solve-part1
   [input]
-  (-> (->> (read-input input)
-           (reduce exec-instr start-state))
+  (-> (reduce exec-instr start-state (read-input input))
       :pos
+      mdist))
+
+
+(defn move-waypoint
+  [state dir mag]
+  (update state
+          :waypoint
+          vec+
+          (vec* (get unit-vectors dir) mag)))
+
+
+(defn rot-left
+  [[x y]]
+  [y (* -1 x)])
+
+
+(defn rot-right
+  [[x y]]
+  [(* -1 y) x])
+
+
+(defn rotate-waypoint
+  [state dir times]
+  (if (zero? times)
+    state
+    (recur (update state :waypoint (if (= :L dir) rot-left rot-right))
+           dir
+           (dec times))))
+
+
+(defn move-ship
+  [{:keys [waypoint] :as state} mag]
+  (update state
+          :ship
+          vec+
+          (vec* waypoint mag)))
+
+
+(defn exec-instr2
+  [state [op mag]]
+  (cond (contains? unit-vectors op) (move-waypoint state op mag)
+        (contains? #{:L :R} op) (rotate-waypoint state op (/ mag 90))
+        :else (move-ship state mag)))
+
+
+(def start-state2
+  {:waypoint [10 -1]
+   :ship [0 0]})
+
+
+#_(prn (solve-part2 test-input))
+#_(prn (solve-part2 real-input))
+(defn solve-part2
+  [input]
+  (-> (reduce exec-instr2 start-state2 (read-input input))
+      :ship
       mdist))
