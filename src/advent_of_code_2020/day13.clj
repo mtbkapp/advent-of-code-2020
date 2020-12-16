@@ -1,6 +1,8 @@
 (ns advent-of-code-2020.day13
   (:require [clojure.java.io :as io]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [loco.core :as loco]
+            [loco.constraints :as lc]))
 
 
 (def real-input (slurp (io/resource "day13.txt")))
@@ -112,5 +114,25 @@
       (if (every? #(good-t-for-bus? % t) adj-buses)
         (- t max-offset)
         (recur (+ t max-id))))))
+
+
+#_(loco/solution model)
+(def model
+  [(lc/$in :t 937 Integer/MAX_VALUE :bounded)
+   (lc/$= 1000 :t)
+   (lc/$= 0 (lc/$mod (lc/$+ :t 1) 13))
+   (lc/$= 0 (lc/$mod (lc/$+ :t 4) 59))
+   (lc/$= 0 (lc/$mod (lc/$+ :t 6) 31))
+   (lc/$= 0 (lc/$mod (lc/$+ :t 7) 19))])
+
+
+(try
+  (loco/solution [(lc/$in :t 937 (inc 106878100) :bounded)
+                  (lc/$= 0 (lc/$mod :t 7))
+                  (lc/$= 0 (lc/$mod (lc/$+ :t 1) 13))
+                  (lc/$= 0 (lc/$mod (lc/$+ :t 7) 19))
+                  ])
+  (catch Exception ex
+    (.printStackTrace ex)))
 
 
