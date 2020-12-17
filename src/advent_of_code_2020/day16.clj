@@ -77,24 +77,17 @@ nearby tickets:
   [input]
   (reduce + (find-invalid (parse input))))
 
-; filter out nearby tickets that have at least one bad field
-; then convert remaining into columns
-; for each column find a single rule that matches all values in it. 
 
-
-; start with a vector of sets, each set holds all the rules
-; for each row, filter each set so that only the ones that are possible remain
-; stop when there is only one rule in each set
-
+(defn valid-value?
+  [{[[a b] [c d]] :ranges :as rule} x]
+  (or (<= a x b)
+      (<= c x d)))
 
 
 (defn invalid-ticket? 
-  "Does this ticket have at least one field that fits no rules?"
   [rules ticket]
   (some (fn [x]
-          (every? (fn [[low high]]
-                    (not (<= low x high)))
-                  (mapcat :ranges rules)))
+          (every? (complement #(valid-value? % x)) rules))
         ticket))
 
 
@@ -121,11 +114,6 @@ nearby tickets:
   (assoc input :cols (build-columns nearby-tickets)))
 
 
-(defn valid-value?
-  [{[[a b] [c d]] :ranges :as rule} x]
-  (or (<= a x b)
-      (<= c x d)))
-
 (def test-input2
   "class: 0-1 or 4-19
 row: 0-5 or 8-19
@@ -140,16 +128,59 @@ nearby tickets:
 5,14,9")
 
 
-#_(->>(parse test-input2)
-      (remove-invalid)
-      (add-columns)
-      (assign-fields)
-      clojure.pprint/pprint)
-(defn assign-fields
+(defn find-potential-fields 
   [{:keys [cols rules] :as input}]
   (map (fn [c]
-         (filter (fn [rule]
-                   (every? (partial valid-value? rule) c))
-                 rules))
+         (into #{}
+               (comp (filter (fn [rule] 
+                               (every? (partial valid-value? rule) c)))
+                     (map :name))
+               rules))
        cols))
+
+
+(defn find-next
+  [cols processed]
+  (some (fn [c]
+          (if (and (= 1 (count c))
+                   (not (contains? processed (first c))))
+            (first c)))
+        cols))
+
+
+(defn done?
+  [cols]
+  (every? #(= 1 (count %)) cols))
+
+
+(defn remove-found
+  [cols field]
+  (map #(if (= #{field} %) % (disj % field))  cols))
+
+
+(defn assign-fields
+  [parsed-input]
+  (loop [cols (->> parsed-input
+                   remove-invalid
+                   add-columns
+                   find-potential-fields) 
+         processed #{}]
+    (if (done? cols) 
+      (map first cols)
+      (let [c (find-next cols processed)]
+        (recur (remove-found cols c) 
+               (conj processed c))))))
+
+
+#_(prn (solve-part2 real-input))
+(defn solve-part2
+  [input]
+  (let [{:keys [your-ticket] :as parsed-input} (parse input)]
+    (transduce
+      (comp (map-indexed vector)
+            (filter #(string/starts-with? (second %) "departure"))
+            (map first)
+            (map (partial nth your-ticket)))
+      *
+      (assign-fields parsed-input))))
 
