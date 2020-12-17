@@ -6,7 +6,7 @@
 
 (def parse*
   (insta/parser
-    "line = color <' bags contain '> (<no-bags> | bag-list) <'.'>
+    "line = color <' bags contain '> (<no-bags> | bag-list) <'.'> \n?
     bag-list = bag-clause | bag-clause <', '> bag-list
     bag-clause = number <' '> color <' '> <bag>
     bag = 'bag' 's'?
