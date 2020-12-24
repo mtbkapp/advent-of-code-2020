@@ -4,15 +4,13 @@
             [clojure.test :refer :all]))
 
 
-; I'm smelling a constraint solver problem
-
 (defn read-tile
   [tile]
   (let [[id-line & image-lines] (string/split-lines tile)]
     {:id  (second (re-matches #"^Tile ([0-9]+):$" id-line))
      :top (first image-lines)
      :bottom (last image-lines)
-     :right (apply str (map last image-lines)) 
+     :right (apply str (map last image-lines))
      :left (apply str (map first image-lines))}))
 
 
@@ -28,13 +26,17 @@
 ..#.......
 ..#.###...")
 
+(defn reverse-edge
+  [edge]
+  (apply str (reverse edge)))
+
 
 (defn rotate-right
   [{:keys [id top bottom right left]}]
   {:id id
-   :top left 
+   :top (reverse-edge left)
    :right top
-   :bottom right 
+   :bottom (reverse-edge right)
    :left bottom})
 
 
@@ -59,10 +61,10 @@
   "Flip tile across the horizontal axis"
   [{:keys [id top bottom right left]}]
   {:id id
-   :top bottom 
-   :right (apply str (reverse right))
+   :top bottom
+   :right (reverse-edge right)
    :bottom top
-   :left (apply str (reverse left))})
+   :left (reverse-edge left)})
 
 
 (defn flip-vert
@@ -70,7 +72,7 @@
   [{:keys [id top bottom right left]}]
   {:id id
    :top (apply str (reverse top))
-   :right left 
+   :right left
    :bottom (apply str (reverse bottom))
    :left right})
 
@@ -79,83 +81,173 @@
   (let [tile (read-tile test-tile)]
     (is (= tile (-> tile flip-horiz flip-horiz)))
     (is (= tile (-> tile flip-vert flip-vert)))
-    (clojure.pprint/pprint (flip-vert tile))
-    (clojure.pprint/pprint (-> tile flip-horiz (rotate-times 2)))
-    #_(is (= (flip-vert tile)
-           (-> tile flip-horiz (rotate-times 2))
-           ))))
+    (is (= (flip-vert tile)
+           (-> tile flip-horiz (rotate-times 2))))
+    (is (= (flip-horiz tile)
+           (-> tile flip-vert (rotate-times 2))))))
 
-
-
-; is flipping vertically the same as flipping horizontally then rotating?
-
-
-; algorithm 1
-; assumptions:
-; 1. a border of a piece only lines up with 1 other border on 1 other piece
-;    or a reverse
-; choose any piece to start with 
-; put all others in a set or queue or something
-; while there are remaining pieces:
-;   choose a piece, try to align it with the current outer borders
-;   if it aligns, integrate it
-;   if not, put it back in the set
-
-; if a border can align with a border on more than one piece then this won't
-; work 
-
-
-; challenge assumption
-; are all borders unique?
-; put all borders in a sequence together with the revesre, frequencies, count
-; should only be 1 or 2 of each if the adjacent borders are unique
-(->> (read-tiles real-input)
-     (mapcat (juxt :top
-                   :bottom
-                   :right
-                   :left
-                   (comp reverse :top)
-                   (comp reverse :bottom)
-                   (comp reverse :right)
-                   (comp reverse :left))
-             (read-tiles real-input))
-     frequencies
-     vals
-     frequencies)
-; this does seem quite right
-
-; how many unique borders are there anyway, 10 with either a . or a #, so 2^10
-; 1024 unique borders
-; how does our puzzle need?
-; 12 on each side that do not match any other = 48
-; 11 inside edges vertically and horizontall with 12 edges each so
-; 2 * 11 * 12 = 264
-; total = 264 + 49 = 312  
-; so there are enough possible edge shapes, try it and see if it works?
-
-
-; try taking one piece and see how all others can fit together with it
-; if there is more than one on a single border then we're screwed
-
-(defn find-simple-fit
-  "Returns all the ways tile-x and tile-y can fit together without rotating
-  or flipping either tile."
-  [{:keys [free-sides] :as tile-x} {free-y :free-sides :as tile-y}]
-  )
 
 (defn all-orientations
+  "Return all the orientations that the given tile can be in"
   [tile]
+  (let [t0 tile
+        t1 (rotate-right t0)
+        t2 (rotate-right t1)
+        t3 (rotate-right t2)
+        t4 (flip-vert t3)
+        t5 (rotate-right t4)
+        t6 (rotate-right t5)
+        t7 (rotate-right t6)]
+    [t0 t1 t2 t3 t4 t5 t6 t7]))
+
+
+(def touching-sides
+  {:top :bottom
+   :right :left
+   :bottom :top
+   :left :right})
+
+
+(defn adjacent-cells
+  [[x y]]
+  [[(- x 1) y]
+   [(+ x 1) y]
+   [x (- y 1)]
+   [x (+ y 1)]])
+
+
+(defn init-state
+  [first-tile]
+  {:border (set (adjacent-cells [0 0]))
+   :tiles {[0 0] first-tile}})
+
+
+(defn get-relative-pos
+  "Get the relative position (:top :bottom :left :right) of b from a."
+  [[ax ay :as a] [bx by :as b]]
+  (cond (and (= ax bx) (= ay (dec by))) :top
+        (and (= ax bx) (= ay (inc by))) :bottom
+        (and (= ax (inc bx) ) (= ay by)) :left
+        (and (= ax (dec bx)) (= ay by)) :right))
+
+
+(deftest test-get-relative-pos
+  (is (= :top (get-relative-pos [7 7] [7 8])))
+  (is (= :bottom (get-relative-pos [7 7] [7 6])))
+  (is (= :left (get-relative-pos [7 7] [6 7])))
+  (is (= :right (get-relative-pos [7 7] [8 7]))))
+
+
+(defn fits?
+  "Does tile fit at pos given the positions of the other tiles?"
+  [tiles pos tile]
+  (let [adjs (filter #(contains? tiles %) (adjacent-cells pos))]
+    (if (empty? adjs)
+      (throw (ex-info "Bug in border probably no adjacent cells"
+                      {:tiles tiles
+                       :pos pos
+                       :tile tile}))
+      (every? (fn [adj-pos]
+                (let [rel-pos (get-relative-pos pos adj-pos)
+                      adj-tile (get tiles adj-pos)]
+                  (= (get tile rel-pos)
+                     (get adj-tile (get touching-sides rel-pos)))))
+              adjs))))
+
+(def test-tile2
+  "Tile 2:
+#...##.#..
+..#.#..#.#
+.###....#.
+###.##.##.
+.###.#####
+.##.#....#
+#...######
+.....#..##
+#.####...#
+#.##...##.")
+
+
+(def test-tile3
+  "Tile 3:
+..###..###
+###...#.#.
+..#....#..
+.#.#.#..##
+##...#.###
+##.##.###.
+####.#...#
+#...##..#.
+##..#.....
+..##.#..#.")
+
+(def test-tile4
+  "Tile 4:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...")
+
+
+(deftest test-fits?
+  (is (fits? {[0 0] (read-tile test-tile2)}
+         [1 0]
+         (read-tile test-tile3)))
+  (is (fits? {[0 0] (read-tile test-tile3)}
+         [1 0]
+         (read-tile test-tile4)))
 
   )
 
+(defn potential-positions
+  [border tiles t]
+  (for [pos border
+        tile (all-orientations t)
+        :when (fits? tiles pos tile)]
+    [pos tile]))
 
-(defn find-fit
-  "Returns all the ways tile-y can connect to tile-x. tile-x stays static. 
-  tile-y can be rotated or flipped"
-  [tile-x tile-y]
-  #_(all-orientations tile-y)
-  )
 
+(defn integrate
+  [state [pos tile]]
+  (-> state
+      (update :tiles assoc pos tile)
+      (update :border disj pos)
+      (update :border
+              into
+              (remove #(contains? (:tiles state) %)
+                      (adjacent-cells pos)))))
+
+
+(defn add-tile
+  [{:keys [border tiles] :as state} t]
+  (let [ps (potential-positions border tiles t)]
+    (cond (empty? ps) [false state]
+          (= 1 (count ps)) [true (integrate state (first ps))]
+          :else (throw (ex-info "more than 1 potential position!"
+                                {:potentials ps
+                                 :state state
+                                 :input-tile t})))))
+
+
+#_(solve (read-tiles test-input))
+(defn solve
+  [[start-tile & rest-tiles]]
+  (loop [state (init-state start-tile)
+         queue (into (clojure.lang.PersistentQueue/EMPTY) rest-tiles)]
+    (if (empty? queue)
+      state
+      (let [t (peek queue)
+            nq (pop queue)
+            [added? next-state] (add-tile state t)]
+        (if added?
+          (recur next-state nq)
+          (recur next-state (conj nq t)))))))
 
 
 #_(count (read-tiles test-input))
