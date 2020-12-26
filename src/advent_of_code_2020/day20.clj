@@ -7,7 +7,7 @@
 (defn read-tile
   [tile]
   (let [[id-line & image-lines] (string/split-lines tile)]
-    {:id  (second (re-matches #"^Tile ([0-9]+):$" id-line))
+    {:id (Long/valueOf (second (re-matches #"^Tile ([0-9]+):$" id-line)))
      :top (first image-lines)
      :bottom (last image-lines)
      :right (apply str (map last image-lines))
@@ -197,22 +197,59 @@
 
 (deftest test-fits?
   (is (fits? {[0 0] (read-tile test-tile2)}
-         [1 0]
-         (read-tile test-tile3)))
+             [1 0]
+             (read-tile test-tile3)))
   (is (fits? {[0 0] (read-tile test-tile3)}
-         [1 0]
-         (read-tile test-tile4)))
+             [1 0]
+             (read-tile test-tile4)))
+  (is (not (fits? {[0 0] (read-tile test-tile3)}
+                  [1 0]
+                  (read-tile test-tile3)))))
 
-  )
 
 (defn potential-positions
   [border tiles t]
+  ; stop at first fits? ?
   (for [pos border
         tile (all-orientations t)
         :when (fits? tiles pos tile)]
     [pos tile]))
 
 
+(deftest test-potential-positions
+  (testing "different orientation not needed"
+    (let [{:keys [border tiles]} (init-state (read-tile test-tile2))
+          t (read-tile test-tile3)
+          [p & ps] (potential-positions border tiles t)]
+      (is (some? p))
+      (is (empty? ps))
+      (is (= [1 0] (first p)))
+      (is (= t (second p)))))
+  (testing "needs different rotation"
+    (let [{:keys [border tiles]} (init-state (read-tile test-tile2))
+          orig-t (read-tile test-tile3)
+          t (-> orig-t flip-vert rotate-right)
+          [p & ps] (potential-positions border tiles t)]
+      (is (some? p))
+      (is (empty? ps))
+      (is (= [1 0] (first p)))
+      (is (= orig-t (second p)))))
+  (testing "switch pieces"
+    (let [{:keys [border tiles]} (init-state (read-tile test-tile3))
+          t (read-tile test-tile2)
+          [p & ps] (potential-positions border tiles t)]
+      (is (some? p))
+      (is (empty? ps))
+      (is (= [-1 0] (first p)))
+      (is (= t (second p)))))
+  (testing "no fit"
+    (let [{:keys [border tiles]} (init-state (read-tile test-tile2))
+          t (read-tile test-tile4)
+          ps (potential-positions border tiles t)]
+      (is (empty? ps)))))
+
+
+; border = (set of cells adjacent to tiles) - (set of tile positions)
 (defn integrate
   [state [pos tile]]
   (-> state
@@ -222,6 +259,20 @@
               into
               (remove #(contains? (:tiles state) %)
                       (adjacent-cells pos)))))
+
+
+(deftest test-integrate
+  (let [t0 (read-tile test-tile2)
+        t1 (read-tile test-tile3)
+        {:keys [border tiles] :as state} (init-state t0)
+        [p & ps] (potential-positions border tiles t1)
+        next-state (integrate state p)]
+      (is (some? p))
+      (is (empty? ps))
+      (is (= #{[-1 0] [1 1] [1 -1] [2 0] [0 -1] [0 1]}
+             (:border next-state)))
+      (is (= {[0 0] t0 [1 0] t1}
+             (:tiles next-state)))))
 
 
 (defn add-tile
@@ -248,6 +299,29 @@
         (if added?
           (recur next-state nq)
           (recur next-state (conj nq t)))))))
+
+
+#_(= (find-corners (solve (read-tiles test-input)))
+     20899048083289)
+(defn find-corners
+  [{:keys [tiles] :as state}]
+  (let [[tlx tly :as tl] (reduce (fn [[mx my :as acc] [x y :as p]]
+                                   (if (or (< x mx) (< y my))
+                                     p
+                                     acc))
+                                 (keys tiles))
+        [brx bry :as br] (reduce (fn [[mx my :as acc] [x y :as p]]
+                                   (if (or (< mx x) (< my y))
+                                     p
+                                     acc))
+                                 (keys tiles))
+        tr [brx tly]
+        bl [tlx bry]]
+    (reduce (fn [product pos]
+              (* product (:id (get tiles pos))))
+            1
+            [tl br tr bl])))
+
 
 
 #_(count (read-tiles test-input))
