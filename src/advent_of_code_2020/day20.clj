@@ -4,14 +4,116 @@
             [clojure.test :refer :all]))
 
 
-(defn read-tile
-  [tile]
-  (let [[id-line & image-lines] (string/split-lines tile)]
-    {:id (Long/valueOf (second (re-matches #"^Tile ([0-9]+):$" id-line)))
-     :top (first image-lines)
-     :bottom (last image-lines)
-     :right (apply str (map last image-lines))
-     :left (apply str (map first image-lines))}))
+(def real-input (slurp (io/resource "day20.txt")))
+
+(def test-input
+  "Tile 2311:
+..##.#..#.
+##..#.....
+#...##..#.
+####.#...#
+##.##.###.
+##...#.###
+.#.#.#..##
+..#....#..
+###...#.#.
+..###..###
+
+Tile 1951:
+#.##...##.
+#.####...#
+.....#..##
+#...######
+.##.#....#
+.###.#####
+###.##.##.
+.###....#.
+..#.#..#.#
+#...##.#..
+
+Tile 1171:
+####...##.
+#..##.#..#
+##.#..#.#.
+.###.####.
+..###.####
+.##....##.
+.#...####.
+#.##.####.
+####..#...
+.....##...
+
+Tile 1427:
+###.##.#..
+.#..#.##..
+.#.##.#..#
+#.#.#.##.#
+....#...##
+...##..##.
+...#.#####
+.#.####.#.
+..#..###.#
+..##.#..#.
+
+Tile 1489:
+##.#.#....
+..##...#..
+.##..##...
+..#...#...
+#####...#.
+#..#.#.#.#
+...#.#.#..
+##.#...##.
+..##.##.##
+###.##.#..
+
+Tile 2473:
+#....####.
+#..#.##...
+#.##..#...
+######.#.#
+.#...#.#.#
+.#########
+.###.#..#.
+########.#
+##...##.#.
+..###.#.#.
+
+Tile 2971:
+..#.#....#
+#...###...
+#.#.###...
+##.##..#..
+.#####..##
+.#..####.#
+#..#.#..#.
+..####.###
+..#.#.###.
+...#.#.#.#
+
+Tile 2729:
+...#.#.#.#
+####.#....
+..#.#.....
+....#..#.#
+.##..##.#.
+.#.####...
+####.#.#..
+##.####...
+##..#.##..
+#.##...##.
+
+Tile 3079:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...")
 
 
 (def test-tile "Tile 3079:
@@ -25,6 +127,65 @@
 ..#.###...
 ..#.......
 ..#.###...")
+
+
+(def test-tile2
+  "Tile 2:
+#...##.#..
+..#.#..#.#
+.###....#.
+###.##.##.
+.###.#####
+.##.#....#
+#...######
+.....#..##
+#.####...#
+#.##...##.")
+
+
+(def test-tile3
+  "Tile 3:
+..###..###
+###...#.#.
+..#....#..
+.#.#.#..##
+##...#.###
+##.##.###.
+####.#...#
+#...##..#.
+##..#.....
+..##.#..#.")
+
+
+(def test-tile4
+  "Tile 4:
+#.#.#####.
+.#..######
+..#.......
+######....
+####.#..#.
+.#...#.##.
+#.#####.##
+..#.###...
+..#.......
+..#.###...")
+
+
+
+(defn read-tile
+  [tile]
+  (let [[id-line & image-lines] (string/split-lines tile)]
+    {:id (Long/valueOf (second (re-matches #"^Tile ([0-9]+):$" id-line)))
+     :top (first image-lines)
+     :bottom (last image-lines)
+     :right (apply str (map last image-lines))
+     :left (apply str (map first image-lines))}))
+
+
+(defn read-tiles
+  [input]
+  (map read-tile (string/split input #"\n\n")))
+
 
 (defn reverse-edge
   [edge]
@@ -154,46 +315,6 @@
                      (get adj-tile (get touching-sides rel-pos)))))
               adjs))))
 
-(def test-tile2
-  "Tile 2:
-#...##.#..
-..#.#..#.#
-.###....#.
-###.##.##.
-.###.#####
-.##.#....#
-#...######
-.....#..##
-#.####...#
-#.##...##.")
-
-
-(def test-tile3
-  "Tile 3:
-..###..###
-###...#.#.
-..#....#..
-.#.#.#..##
-##...#.###
-##.##.###.
-####.#...#
-#...##..#.
-##..#.....
-..##.#..#.")
-
-(def test-tile4
-  "Tile 4:
-#.#.#####.
-.#..######
-..#.......
-######....
-####.#..#.
-.#...#.##.
-#.#####.##
-..#.###...
-..#.......
-..#.###...")
-
 
 (deftest test-fits?
   (is (fits? {[0 0] (read-tile test-tile2)}
@@ -209,7 +330,6 @@
 
 (defn potential-positions
   [border tiles t]
-  ; stop at first fits? ?
   (for [pos border
         tile (all-orientations t)
         :when (fits? tiles pos tile)]
@@ -249,7 +369,6 @@
       (is (empty? ps)))))
 
 
-; border = (set of cells adjacent to tiles) - (set of tile positions)
 (defn integrate
   [state [pos tile]]
   (-> state
@@ -286,8 +405,7 @@
                                  :input-tile t})))))
 
 
-#_(solve (read-tiles test-input))
-(defn solve
+(defn solve-puzzle
   [[start-tile & rest-tiles]]
   (loop [state (init-state start-tile)
          queue (into (clojure.lang.PersistentQueue/EMPTY) rest-tiles)]
@@ -301,20 +419,19 @@
           (recur next-state (conj nq t)))))))
 
 
-#_(= (find-corners (solve (read-tiles test-input)))
-     20899048083289)
-(defn find-corners
+(defn find-corner
+  [coords gt-or-lt]
+  (reduce (fn [[mx my :as acc] [x y :as p]]
+            (if (or (gt-or-lt x mx) (gt-or-lt y my))
+              p
+              acc))
+          coords))
+
+
+(defn product-of-corner-ids 
   [{:keys [tiles] :as state}]
-  (let [[tlx tly :as tl] (reduce (fn [[mx my :as acc] [x y :as p]]
-                                   (if (or (< x mx) (< y my))
-                                     p
-                                     acc))
-                                 (keys tiles))
-        [brx bry :as br] (reduce (fn [[mx my :as acc] [x y :as p]]
-                                   (if (or (< mx x) (< my y))
-                                     p
-                                     acc))
-                                 (keys tiles))
+  (let [[tlx tly :as tl] (find-corner (keys tiles) <)
+        [brx bry :as br] (find-corner (keys tiles) >) 
         tr [brx tly]
         bl [tlx bry]]
     (reduce (fn [product pos]
@@ -323,125 +440,13 @@
             [tl br tr bl])))
 
 
-
-#_(count (read-tiles test-input))
-#_(count (read-tiles real-input))
-(defn read-tiles
+(defn solve-part1
   [input]
-  (map read-tile (string/split input #"\n\n")))
-
-(def real-input (slurp (io/resource "day20.txt")))
-
-(def test-input
-  "Tile 2311:
-..##.#..#.
-##..#.....
-#...##..#.
-####.#...#
-##.##.###.
-##...#.###
-.#.#.#..##
-..#....#..
-###...#.#.
-..###..###
-
-Tile 1951:
-#.##...##.
-#.####...#
-.....#..##
-#...######
-.##.#....#
-.###.#####
-###.##.##.
-.###....#.
-..#.#..#.#
-#...##.#..
-
-Tile 1171:
-####...##.
-#..##.#..#
-##.#..#.#.
-.###.####.
-..###.####
-.##....##.
-.#...####.
-#.##.####.
-####..#...
-.....##...
-
-Tile 1427:
-###.##.#..
-.#..#.##..
-.#.##.#..#
-#.#.#.##.#
-....#...##
-...##..##.
-...#.#####
-.#.####.#.
-..#..###.#
-..##.#..#.
-
-Tile 1489:
-##.#.#....
-..##...#..
-.##..##...
-..#...#...
-#####...#.
-#..#.#.#.#
-...#.#.#..
-##.#...##.
-..##.##.##
-###.##.#..
-
-Tile 2473:
-#....####.
-#..#.##...
-#.##..#...
-######.#.#
-.#...#.#.#
-.#########
-.###.#..#.
-########.#
-##...##.#.
-..###.#.#.
-
-Tile 2971:
-..#.#....#
-#...###...
-#.#.###...
-##.##..#..
-.#####..##
-.#..####.#
-#..#.#..#.
-..####.###
-..#.#.###.
-...#.#.#.#
-
-Tile 2729:
-...#.#.#.#
-####.#....
-..#.#.....
-....#..#.#
-.##..##.#.
-.#.####...
-####.#.#..
-##.####...
-##..#.##..
-#.##...##.
-
-Tile 3079:
-#.#.#####.
-.#..######
-..#.......
-######....
-####.#..#.
-.#...#.##.
-#.#####.##
-..#.###...
-..#.......
-..#.###...")
+  (-> (read-tiles input)
+      (solve-puzzle)
+      (product-of-corner-ids)))
 
 
-
-
-
+(deftest test-solve-part1
+  (is (= 20899048083289 (solve-part1 test-input)))
+  (is (= 66020135789767 (solve-part1 real-input))))
