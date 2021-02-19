@@ -179,7 +179,8 @@ Tile 3079:
      :top (first image-lines)
      :bottom (last image-lines)
      :right (apply str (map last image-lines))
-     :left (apply str (map first image-lines))}))
+     :left (apply str (map first image-lines))
+     :image-lines image-lines}))
 
 
 (defn read-tiles
@@ -450,3 +451,203 @@ Tile 3079:
 (deftest test-solve-part1
   (is (= 20899048083289 (solve-part1 test-input)))
   (is (= 66020135789767 (solve-part1 real-input))))
+
+
+(defn coords-to-ids
+  [{:keys [tiles] :as solution}]
+  (reduce (fn [acc [coord {:keys [id]}]]
+            (assoc acc coord id) )
+          {}
+          tiles))
+
+
+(defn index-by
+  [f xs]
+  (reduce (fn [idx x]
+            (assoc idx (f x) x))
+          {}
+          xs))
+
+
+(defn vec-scale 
+  [[x y] s]
+  [(* s x) (* s y)])
+
+
+(defn vec+
+  [[x0 y0] [x1 y1]]
+  [(+ x0 x1) (+ y0 y1)])
+
+
+(defn normalize
+  [tiles]
+  (let [top-left (find-corner (keys tiles) <)
+        inverse (vec-scale top-left -1)]
+    (reduce (fn [acc [k t]]
+              (assoc acc (vec+ k inverse) t))
+            {}
+            tiles)))
+
+
+#_(def arr (solution->array (index-by :id (read-tiles real-input)) solution))
+(defn solution->array
+  [all-tiles solution]
+  (let [norm-tiles (normalize (coords-to-ids solution))
+        array (make-array Character/TYPE 120 120)]
+    (doseq [[tile-coord tile-id] norm-tiles]
+      (doseq [[y line] (map-indexed vector (:image-lines (get all-tiles tile-id)))]
+        (doseq [[x c] (map-indexed vector line)]
+          (let [base (vec-scale tile-coord 10)
+                [cx cy] (vec+ base [x y])]
+            (aset array cy cx c)))))
+    array))
+
+#_(let [freq (atom {})]
+  (doseq [a (seq arr)]
+    (doseq [c (seq a)]
+      (swap! freq update c (fnil inc 0)) ))
+  @freq)
+
+(defn monster-pattern->coords
+  [pattern]
+  (->> (string/split-lines pattern)
+       (mapcat (fn [y line]
+                 (map-indexed (fn [x c]
+                                (if (= c \#)
+                                  [x y]) )
+                              line))
+               (range))
+       (filter some?)
+       set))
+
+
+(def monster-pattern
+  (monster-pattern->coords "                  # 
+#    ##    ##    ###
+ #  #  #  #  #  #"))
+
+
+(defn monster-at?
+  [whole-arr pos]
+  (every? (fn [[x y]]
+            (and (< x 120)
+                 (< y 120)
+                 (= \# (aget whole-arr y x))))
+          (map #(vec+ pos %) monster-pattern)))
+
+
+(def whole-coords
+  (for [x (range 120)
+        y (range 120)]
+    [x y]))
+
+
+#_(count-monsters arr)
+(defn count-monsters
+  [whole-arr]
+  (reduce (fn [c pos]
+            (if (monster-at? whole-arr pos)
+              (inc c)
+              c))
+          0
+          whole-coords))
+
+; top row -> right column
+; [0 0] [119 0]
+; [1 0] [119 1]
+; [2 0] [119 2]
+; [3 0] [119 3]
+; ....
+; second row -> second to right column
+; [0 1] [118 0]
+; [1 1] [118 1]
+; [2 1] [118 2]
+
+; bottom row  -> left column
+; [0 119] [0 0]
+; [1 119] [0 1]
+; [2 119] [0 2]
+
+(defn rotate-array-right-vec
+  [[x y]]
+  [(- 119 y) x])
+
+#_(test-rotate-array-right-vec)
+(deftest test-rotate-array-right-vec
+  (is (= [119 0] (rotate-array-right-vec [0 0])))
+  (is (= [119 1] (rotate-array-right-vec [1 0])))
+  (is (= [119 2] (rotate-array-right-vec [2 0])))
+  (is (= [118 0] (rotate-array-right-vec [0 1])))
+  (is (= [118 1] (rotate-array-right-vec [1 1])))
+  (is (= [118 2] (rotate-array-right-vec [2 1])))
+  (is (= [0 0] (rotate-array-right-vec [0 119])))
+  (is (= [0 1] (rotate-array-right-vec [1 119])))
+  (is (= [0 2] (rotate-array-right-vec [2 119]))))
+
+
+#_(count-monsters (rotate-array-right arr))
+(defn rotate-array-right
+  [in]
+  (let [out (make-array Character/TYPE 120 120)]
+    (doseq [[x y :as pos] whole-coords]
+      (let [[rx ry] (rotate-array-right-vec pos)]
+        (aset out ry rx (aget in y x))))
+    out))
+
+
+(comment
+  (def solution (-> (read-tiles real-input) (solve-puzzle)))
+  (type solution)
+  (keys solution)
+  (coords-to-ids solution)
+  (index-by :id (read-tiles real-input))
+
+  (solution->array (index-by :id (read-tiles real-input)) solution)
+
+
+  ; shows that the solution is rectangular and doesn't have missing tiles
+  (let [coords (keys (:tiles solution))
+        [tlx tly :as tl] (find-corner coords <)
+        [brx bry :as br] (find-corner coords >)]
+    (prn tl br)
+    (count
+    (for [x (range tlx (inc brx))
+          y (range tly (inc bry))]
+      [x y]
+      )))
+
+  ; scheme to find [x y] in solution?
+  ; or combine all tiles 
+
+
+  (-> (read-tiles real-input)
+      (first)
+      :image-lines
+      first
+      count
+      )
+  
+  ; each tile is 10x10
+  ; 12x12 tiles
+  ; [-2 -5] to [9 6]
+
+  ; normalize tiles
+
+
+  ; 120 by 120 array of chars
+
+
+
+  (def solution2 (normalize (coords-to-ids solution)))
+  (def index-tiles (index-by :id (read-tiles real-input)))
+
+  
+  (let [m (make-array Character/TYPE 120 120)
+        _ (aset m 100 100 (char 33))
+        x (aget m 100 100)
+        ]
+    (prn ">>>>>>" x "<<<<<")
+    )
+
+  
+  )
