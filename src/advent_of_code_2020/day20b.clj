@@ -236,6 +236,7 @@ Tile 3079:
          (every? vector? v)
          (every? #(= c (count %)) v))))
 
+
 (spec/def ::tile (spec/keys :req-un [:tile/id :tile/pixels :tile/transform :tile/size]))
 (spec/def :tile/id (spec/and string? not-empty))
 (spec/def :tile/pixels square-vector?)
@@ -284,10 +285,10 @@ Tile 3079:
 
 
 (defn get-border
-  [tile border]
+  [{[width height] :size :as tile} border]
   (map (comp (partial get-pixel tile)
              (border-vec-fn tile border))
-       (range 0 10)))
+       (range 0 width)))
 
 
 (deftest test-get-border
