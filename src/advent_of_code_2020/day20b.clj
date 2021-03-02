@@ -558,6 +558,181 @@ Tile 3079:
   (is (= 20899048083289 (solve-part1 test-input)))
   (is (= 66020135789767 (solve-part1 real-input))))
 
+(defn vec+
+  [v0 v1]
+  (mapv + v0 v1))
+
+(defn vec-scale
+  [v s]
+  (mapv #(* s %) v))
+
+
 ; part 2
-; remove borders of each tile?
-; just use the solution board instead of combining into a bigger image?
+#_(combine-tiles (solve-puzzle (read-input test-input)))
+(defn combine-tiles 
+  [board]
+  (let [tile-size (-> board first val :size)
+        [min-x min-y :as top-left] (find-corner board :top-left)
+        [max-x max-y] (find-corner board :bottom-right)
+        board-width (- (inc max-x) min-x)
+        board-height (- (inc max-y) min-y)
+        new-tile-size (- tile-size 2)
+        combined-tile-size (* new-tile-size board-height)
+        pixel-array (make-array Character/TYPE
+                                combined-tile-size 
+                                combined-tile-size)
+        tile-offset (vec-scale top-left -1)]
+    (assert (= board-width board-height))
+    (doseq [[tile-coord tile] board]
+      (doseq [y (range 1 (inc new-tile-size))]
+        (doseq [x (range 1 (inc new-tile-size))]
+          (let [[ax ay] (-> tile-coord
+                            (vec+ tile-offset)
+                            (vec-scale new-tile-size)
+                            (vec+ [x y])
+                            (vec+ [-1 -1]))]
+            (aset pixel-array ay ax (get-pixel tile [x y]))))))
+    {:id -1
+     :pixels (mapv vec pixel-array)
+     :transform identity
+     :size combined-tile-size}))
+
+
+; TODO try this again but in a more clear way
+; function to translate border to with corner at (0,0)
+(defn prepend-tile-xform
+  [tile xform]
+  (update tile :transform #(comp % xform)))
+
+(defn remove-border
+  [tile]
+  (-> tile
+      (prepend-tile-xform #(vec+ % [1 1]))
+      (update :size - 2)))
+
+(deftest test-remove-border
+  (let [t (read-tile "Tile 1:\n#####\n#ABC#\n#DEF#\n#GHI#\n#####")
+        tb (remove-border t)
+        te (read-tile "Tile 2:\nABC\nDEF\nGHI")]
+    (is (= (tile-pixels te)
+           (tile-pixels tb)))))
+
+(defn prep-board
+  "Translates the board coordinates so the top-left is at [0 0].
+  Removes the border from each tile."
+  [board]
+  (let [offset (vec-scale (find-corner board :top-left) -1)]
+    (into {}
+          (map (juxt (comp (partial vec+ offset) key)
+                     (comp remove-border val)))
+          board)))
+
+
+#_(convert-board-to-tile (prep-board (solve-puzzle (read-input test-input))))
+(defn convert-board-to-tile
+  [board]
+  (let [[max-x max-y] (find-corner board :bottom-right)
+        board-size (inc max-x)
+        tile-size (-> board first val :size)
+        size (* board-size tile-size)
+        pixel-array (make-array Character/TYPE size size)]
+    (assert (= max-x max-y) "board is not square!")
+    (doseq [[tile-coord tile] board]
+      (doseq [y (range tile-size)]
+        (doseq [x (range tile-size)]
+          (let [p [x y]
+                [ax ay] (vec+ (vec-scale tile-coord tile-size) p)
+                pixel (get-pixel tile p)]
+            (aset pixel-array ay ax (get-pixel tile p))))))
+    {:id -1
+     :size size
+     :transform identity
+     :pixels (mapv vec pixel-array)}))
+
+
+(def test-combined-pixels
+  ".#.#..#.##...#.##..#####
+###....#.#....#..#......
+##.##.###.#.#..######...
+###.#####...#.#####.#..#
+##.#....#.##.####...#.##
+...########.#....#####.#
+....#..#...##..#.#.###..
+.####...#..#.....#......
+#..#.##..#..###.#.##....
+#.####..#.####.#.#.###..
+###.#.#...#.######.#..##
+#.####....##..########.#
+##..##.#...#...#.#.#.#..
+...#..#..#.#.##..###.###
+.#.#....#.##.#...###.##.
+###.#...#..#.##.######..
+.#.#.###.##.##.#..#.##..
+.####.###.#...###.#..#.#
+..#.#..#..#.#.#.####.###
+#..####...#.#.#.###.###.
+#####..#####...###....##
+#.##..#..#...#..####...#
+.#.###..##..##..####.##.
+...###...##...#...#..###")
+
+
+(deftest test-convert-board-to-tile
+  #_(is (some #(= test-combined-pixels (tile-pixels %))
+            (-> test-input
+                read-input
+                solve-puzzle
+                prep-board
+                convert-board-to-tile
+                all-orientations))))
+
+
+(doseq [t (-> test-input
+                read-input
+                solve-puzzle
+                prep-board
+                convert-board-to-tile
+                all-orientations)]
+  (println (tile-pixels t))
+  (println))
+
+
+
+#_(->> test-input
+    read-input
+    solve-puzzle
+    prep-board
+    (map (fn [[k v]]
+           [k (:id v)]))
+    clojure.pprint/pprint
+    )
+
+(def solved1 (-> test-input read-input solve-puzzle))
+
+(let [t1951 ".#.#..#.
+###....#
+##.##.##
+###.####
+##.#....
+...#####
+....#..#
+.####..."
+      indexed (reduce (fn [m t]
+                        (assoc m (:id t) t)
+                        )
+                      {}
+                      (vals (prep-board solved1)))
+      t (get indexed 1951)
+      ]
+  (println (flip-tile t))
+  )
+
+
+;.####...
+;....#..#
+;...#####
+;##.#....
+;###.####
+;##.##.##
+;###....#
+;.#.#..#.
