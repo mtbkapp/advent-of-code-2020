@@ -298,15 +298,16 @@ Tile 3079:
     (is (= (seq "#..##.#...") (get-border tile :right)))))
 
 
-(defn rotate-xform
-  [{[width height] :size :as tile}]
-  (fn [[x y]]
-    [y (- (dec height) x)]))
+(defn append-tile-xform 
+  [tile xform]
+  (update tile :transform #(comp xform %)))
 
 
 (defn rotate-tile
-  [tile]
-  (update tile :transform #(comp (rotate-xform tile) %)))
+  [{[width height] :size :as tile}]
+  (append-tile-xform tile 
+                     (fn [[x y]]
+                       [y (- (dec height) x)])))
 
 
 (deftest test-rotate-tile
@@ -326,15 +327,11 @@ Tile 3079:
             border)))))
 
 
-(defn flip-xform
-  [{[width height] :size :as tile}]
-  (fn [[x y]]
-    [x (- (dec height) y)]))
-
-
 (defn flip-tile
-  [tile]
-  (update tile :transform #(comp (flip-xform tile) %)))
+  [{[width height] :size :as tile}]
+  (append-tile-xform tile 
+                     (fn [[x y]] 
+                       [x (- (dec height) y)])))
 
 
 (deftest test-flip-tile
