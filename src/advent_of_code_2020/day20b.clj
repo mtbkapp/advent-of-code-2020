@@ -8,14 +8,14 @@
 
 ; Algorithm for part 1
 
-; How many orientations can a tile have? 
+; How many orientations can a tile have?
 ; => 8
 ; => start, rotate, rotate, rotate, flip, rotate, rotate, rotate
 
 
-; tiles behaviors 
+; tiles behaviors
 ; rotate - rotate a tile to the right
-; flip - flip a tile over (just pick horizontally or vertically) 
+; flip - flip a tile over (just pick horizontally or vertically)
 ; get-top - get the pixels along the top edge
 ; get-bottom
 ; get-left
@@ -26,7 +26,7 @@
 
 ; main algorithm
 ; input: a set of tiles
-; output: a board with all the tiles on it 
+; output: a board with all the tiles on it
 ; read all the tiles each in a convenient data structure to support the above.
 ; put all tiles in a queue (in any order), Q
 ; pull the first tile out and place on the board
@@ -42,8 +42,8 @@
 
 
 ; fits algorithm
-; input: the board, a tile 
-; output: any coordinate where the tile fits or nil if it doesn't fit anywhere 
+; input: the board, a tile
+; output: any coordinate where the tile fits or nil if it doesn't fit anywhere
 ; all = all orientations of the tile
 ; border positions = positions on the board where there isn't a tile but a tile
 ;                    is adjacent
@@ -57,7 +57,7 @@
 
 
 ; assumptions
-; 1. each tile can only fit on the board in a single way 
+; 1. each tile can only fit on the board in a single way
 ; 2. there is only one way to fit the tiles together
 
 
@@ -251,19 +251,24 @@ Tile 3079:
   [s]
   (let [[id-row & pixel-rows] (string/split-lines s)]
     (let [pixels (mapv vec pixel-rows)]
-      {:id (second (re-matches #"^\w+\s([0-9]*):$" "Tile 4:"))
+      {:id (Long/valueOf (second (re-matches #"^\w+\s([0-9]*):$" id-row)))
        :pixels pixels
        :transform identity
        :size (count pixels)})))
 
 (deftest test-read-tile
   (let [{:keys [id pixels transform size] :as t} (read-tile test-tile4)]
-    (is (= "4" id))
+    (is (= 4 id))
     (is (= (string/join \newline (rest (string/split-lines test-tile4)))
            (string/join \newline (map #(string/join %) pixels))))
     (is (fn? transform))
     (is (= [99 88] (transform [99 88])))
     (is (= 10 size))))
+
+
+(defn read-input
+  [input]
+  (map read-tile (string/split input #"\n\n")))
 
 
 (defn get-pixel
@@ -295,14 +300,14 @@ Tile 3079:
     (is (= (seq "#..##.#...") (get-border tile :right)))))
 
 
-(defn append-tile-xform 
+(defn append-tile-xform
   [tile xform]
   (update tile :transform #(comp xform %)))
 
 
 (defn rotate-tile
   [{:keys [size] :as tile}]
-  (append-tile-xform tile 
+  (append-tile-xform tile
                      (fn [[x y]]
                        [y (- (dec size) x)])))
 
@@ -325,8 +330,8 @@ Tile 3079:
 
 (defn flip-tile
   [{:keys [size] :as tile}]
-  (append-tile-xform tile 
-                     (fn [[x y]] 
+  (append-tile-xform tile
+                     (fn [[x y]]
                        [x (- (dec size) y)])))
 
 (deftest test-flip-tile
@@ -429,8 +434,28 @@ Tile 3079:
                       (get-border (get board adj-pos) adj-border)))))))
 
 (deftest test-fits?
-  ;TODO
-  )
+  (let [up (read-tile "Tile 1:\n...\n...\n###")
+        left (read-tile "Tile 2:\n..#\n...\n...")
+        bottom (read-tile "Tile 3:\n.#.\n...\n...")
+        right (read-tile "Tile 4:\n#..\n...\n...")
+        fit-all (read-tile "Tile 5:\n###\n...\n.#.")
+        blank (read-tile "Tile 6:\n...\n...\n...")
+        fit-none (rotate-tile fit-all)
+        missing-one (read-tile "Tile 7:\n###\n...\n...")
+        board {[0 1] up
+               [-1 0] left
+               [0 -1] bottom
+               [1 0] right}]
+    (testing "all sides checked"
+      (is (fits? board fit-all [0 0])))
+    (testing "only sides that touch are checked"
+      (is (fits? board blank [0 2]))
+      (is (fits? board blank [-2 0]))
+      (is (fits? board blank [0 -2]))
+      (is (fits? board blank [2 0])))
+    (testing "when no touching sides fit"
+      (is (not (fits? board fit-none [0 0])))
+      (is (not (fits? board missing-one [0 0]))))))
 
 
 (defn find-pos
@@ -441,9 +466,36 @@ Tile 3079:
            [t p])))
 
 
+(defn tile-pixels
+  [{:keys [size] :as tile}]
+  (with-out-str
+    (doseq [y (range size)]
+      (doseq [x (range size)]
+        (print (get-pixel tile [x y])))
+      (println))))
+
+
 (deftest test-find-pos
-  ;TODO
-  )
+  (let [up (read-tile "Tile 1:\n...\n...\n###")
+        left (read-tile "Tile 2:\n..#\n...\n...")
+        bottom (read-tile "Tile 3:\n.#.\n...\n...")
+        right (read-tile "Tile 4:\n#..\n...\n...")
+        board {[0 1] up
+               [-1 0] left
+               [0 -1] bottom
+               [1 0] right}
+        fits (read-tile "Tile 5:\n###\n...\n.#.")
+        fit-none (read-tile "Tile 6:\n###\n###\n###")
+        expected? (fn [[ex-tile ex-pos] [actual-tile actual-pos]]
+                    (and (= (tile-pixels ex-tile)
+                            (tile-pixels actual-tile))
+                         (= ex-pos actual-pos)))]
+    (testing "a position exists"
+      (is (expected? [fits [0 0]] (find-pos board fits)))
+      (is (expected? [fits [0 0]] (find-pos board (-> fits rotate-tile))))
+      (is (expected? [fits [0 0]] (find-pos board (-> fits rotate-tile rotate-tile flip-tile)))))
+    (testing "a position does not exist"
+      (is (nil? (find-pos board fit-none))))))
 
 
 (defn place-tile
@@ -451,13 +503,12 @@ Tile 3079:
   (assoc board p tile))
 
 
-
 (defn solve-puzzle
   [[first-tile & tiles]]
   (loop [q (into (clojure.lang.PersistentQueue/EMPTY) tiles)
          board (init-board first-tile)]
     (if (empty? q)
-      q
+      board
       (let [next-tile (peek q)
             next-q (pop q)]
         (if-let [[t p] (find-pos board next-tile)]
@@ -465,7 +516,47 @@ Tile 3079:
           (recur (conj next-q next-tile) board))))))
 
 
+(defn find-corner
+  [board corner]
+  (let [gt-or-lt (if (= corner :top-left) < >)]
+    (reduce (fn [[mx my :as acc] [x y :as p]]
+              (if (or (gt-or-lt x mx) (gt-or-lt y my))
+                p
+                acc))
+            (keys board))))
 
+
+(defn find-corners
+  [board]
+  (let [[tlx tly] (find-corner board :top-left)
+        [brx bry] (find-corner board :bottom-right)]
+    {:top-left [tlx tly]
+     :bottom-left [tlx bry]
+     :bottom-right [brx bry]
+     :top-right [brx tly]}))
+
+
+(defn product-of-corner-ids
+  [board]
+  (transduce (map #(:id (get board %)))
+             *
+             (vals (find-corners board))))
+
+
+(defn solve-part1
+  [input]
+  (-> input
+      read-input
+      solve-puzzle
+      product-of-corner-ids))
+
+
+(def real-input (slurp (io/resource "day20.txt")))
+
+
+(deftest test-solve-part1
+  (is (= 20899048083289 (solve-part1 test-input)))
+  (is (= 66020135789767 (solve-part1 real-input))))
 
 ; part 2
 ; remove borders of each tile?
