@@ -240,7 +240,7 @@ Tile 3079:
 (spec/def ::tile (spec/keys :req-un [:tile/id :tile/pixels :tile/transform :tile/size]))
 (spec/def :tile/id (spec/and string? not-empty))
 (spec/def :tile/pixels square-vector?)
-(spec/def :tile/size (spec/tuple pos-int? pos-int?))
+(spec/def :tile/size pos-int?)
 
 (spec/def ::coord (spec/tuple int? int?))
 (spec/def :tile/transform (spec/fspec :args (spec/cat :coord ::coord)
@@ -254,7 +254,7 @@ Tile 3079:
       {:id (second (re-matches #"^\w+\s([0-9]*):$" "Tile 4:"))
        :pixels pixels
        :transform identity
-       :size [(count (first pixels)) (count pixels)]})))
+       :size (count pixels)})))
 
 
 (deftest test-read-tile
@@ -264,7 +264,7 @@ Tile 3079:
            (string/join \newline (map #(string/join %) pixels))))
     (is (fn? transform))
     (is (= [99 88] (transform [99 88])))
-    (is (= [10 10] size))))
+    (is (= 10 size))))
 
 
 (defn get-pixel
@@ -274,21 +274,19 @@ Tile 3079:
 
 
 (defn border-vec-fn
-  [{[width height] :size :as tile} border]
-  (let [mx (dec width)
-        my (dec height)]
-    (case border
-      :top #(vector % 0)
-      :left #(vector 0 %)
-      :bottom #(vector % my)
-      :right #(vector mx %))))
+  [{:keys [size] :as tile} border]
+  (case border
+    :top #(vector % 0)
+    :left #(vector 0 %)
+    :bottom #(vector % (dec size))
+    :right #(vector (dec size) %)))
 
 
 (defn get-border
-  [{[width height] :size :as tile} border]
+  [{:keys [size] :as tile} border]
   (map (comp (partial get-pixel tile)
              (border-vec-fn tile border))
-       (range 0 width)))
+       (range 0 size)))
 
 
 (deftest test-get-border
@@ -305,10 +303,10 @@ Tile 3079:
 
 
 (defn rotate-tile
-  [{[width height] :size :as tile}]
+  [{:keys [size] :as tile}]
   (append-tile-xform tile 
                      (fn [[x y]]
-                       [y (- (dec height) x)])))
+                       [y (- (dec size) x)])))
 
 
 (deftest test-rotate-tile
@@ -329,10 +327,10 @@ Tile 3079:
 
 
 (defn flip-tile
-  [{[width height] :size :as tile}]
+  [{:keys [size] :as tile}]
   (append-tile-xform tile 
                      (fn [[x y]] 
-                       [x (- (dec height) y)])))
+                       [x (- (dec size) y)])))
 
 
 (deftest test-flip-tile
