@@ -229,13 +229,13 @@ Tile 3079:
 ..#.......
 ..#.###...")
 
+
 (defn square-vector?
   [v]
   (let [c (count v)]
     (and (vector? v)
          (every? vector? v)
          (every? #(= c (count %)) v))))
-
 
 (spec/def ::tile (spec/keys :req-un [:tile/id :tile/pixels :tile/transform :tile/size]))
 (spec/def :tile/id (spec/and string? not-empty))
@@ -255,7 +255,6 @@ Tile 3079:
        :pixels pixels
        :transform identity
        :size (count pixels)})))
-
 
 (deftest test-read-tile
   (let [{:keys [id pixels transform size] :as t} (read-tile test-tile4)]
@@ -288,7 +287,6 @@ Tile 3079:
              (border-vec-fn tile border))
        (range 0 size)))
 
-
 (deftest test-get-border
   (let [tile (read-tile test-tile3)]
     (is (= (seq "..###..###") (get-border tile :top)))
@@ -307,7 +305,6 @@ Tile 3079:
   (append-tile-xform tile 
                      (fn [[x y]]
                        [y (- (dec size) x)])))
-
 
 (deftest test-rotate-tile
   (testing "single rotate"
@@ -332,7 +329,6 @@ Tile 3079:
                      (fn [[x y]] 
                        [x (- (dec size) y)])))
 
-
 (deftest test-flip-tile
   (testing "single flip"
     (let [t (read-tile test-tile3)
@@ -348,7 +344,6 @@ Tile 3079:
         (is (= (get-border t0 border)
                (get-border t1 border))
             border)))))
-
 
 (deftest test-rotate-flip-tile
   (let [t0 (read-tile test-tile3)
@@ -378,3 +373,100 @@ Tile 3079:
         t6 (rotate-tile t5)
         t7 (rotate-tile t6)]
     [t0 t1 t2 t3 t4 t5 t6 t7]))
+
+
+(defn adjacent-positions
+  [[x y]]
+  [[(- x 1) y]
+   [(+ x 1) y]
+   [x (- y 1)]
+   [x (+ y 1)]])
+
+
+(spec/def ::board (spec/map-of ::coord ::tile))
+
+
+(defn init-board
+  [first-tile]
+  {[0 0] first-tile})
+
+
+(defn potential-positions
+  [board]
+  (->> (keys board)
+       (mapcat adjacent-positions)
+       (remove (partial contains? board))))
+
+
+(defn get-adj-borders
+  [[x y] [ax ay]]
+  (cond (and (= x ax) (= y (dec ay))) [:top :bottom]
+        (and (= x (inc ax)) (= y ay)) [:left :right]
+        (and (= x ax) (= y (inc ay))) [:bottom :top]
+        (and (= x (dec ax)) (= y ay)) [:right :left]))
+
+(deftest test-get-adj-borders
+  (let [p [0 0]
+        top [0 1]
+        left [-1 0]
+        bottom [0 -1]
+        right [1 0]
+        bad [2 0]]
+    (is (= [:top :bottom] (get-adj-borders p top)))
+    (is (= [:left :right] (get-adj-borders p left)))
+    (is (= [:bottom :top] (get-adj-borders p bottom)))
+    (is (= [:right :left] (get-adj-borders p right)))
+    (is (nil? (get-adj-borders p bad)))))
+
+
+(defn fits?
+  [board tile pos]
+  (->> (adjacent-positions pos)
+       (filter (partial contains? board))
+       (every? (fn [adj-pos]
+                 (let [[border adj-border] (get-adj-borders pos adj-pos)]
+                   (= (get-border tile border)
+                      (get-border (get board adj-pos) adj-border)))))))
+
+(deftest test-fits?
+  ;TODO
+  )
+
+
+(defn find-pos
+  [board tile]
+  (first (for [t (all-orientations tile)
+               p (potential-positions board)
+               :when (fits? board t p)]
+           [t p])))
+
+
+(deftest test-find-pos
+  ;TODO
+  )
+
+
+(defn place-tile
+  [board tile p]
+  (assoc board p tile))
+
+
+
+(defn solve-puzzle
+  [[first-tile & tiles]]
+  (loop [q (into (clojure.lang.PersistentQueue/EMPTY) tiles)
+         board (init-board first-tile)]
+    (if (empty? q)
+      q
+      (let [next-tile (peek q)
+            next-q (pop q)]
+        (if-let [[t p] (find-pos board next-tile)]
+          (recur next-q (place-tile board t p))
+          (recur (conj next-q next-tile) board))))))
+
+
+
+
+; part 2
+; remove borders of each tile?
+; just use the solution board instead of combining into a bigger image?
