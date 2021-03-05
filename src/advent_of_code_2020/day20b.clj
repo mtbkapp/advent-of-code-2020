@@ -292,6 +292,7 @@ Tile 3079:
              (border-vec-fn tile border))
        (range 0 size)))
 
+
 (deftest test-get-border
   (let [tile (read-tile test-tile3)]
     (is (= (seq "..###..###") (get-border tile :top)))
@@ -311,7 +312,32 @@ Tile 3079:
                      (fn [[x y]]
                        [y (- (dec size) x)])))
 
+
+(defn tile-pixels
+  [{:keys [size] :as tile}]
+  (with-out-str
+    (doseq [y (range size)]
+      (doseq [x (range size)]
+        (print (get-pixel tile [x y])))
+      (println))))
+
+
 (deftest test-rotate-tile
+  (testing "transform"
+    (let [{xform :transform} (rotate-tile {:transform identity :size 3})]
+      (is (= (xform [0 0]) [0 2]))
+      (is (= (xform [1 0]) [0 1]))
+      (is (= (xform [2 0]) [0 0]))
+      (is (= (xform [0 1]) [1 2]))
+      (is (= (xform [1 1]) [1 1]))
+      (is (= (xform [2 1]) [1 0]))
+      (is (= (xform [0 2]) [2 2]))
+      (is (= (xform [1 2]) [2 1]))
+      (is (= (xform [2 2]) [2 0]))))
+  (testing "single rotate, test-tile"
+    (let [tr (rotate-tile (read-tile "Tile 3:\nABC\nDEF\nGHI"))]
+      (is (= "GDA\nHEB\nIFC\n"
+             (tile-pixels tr)))))
   (testing "single rotate"
     (let [t (read-tile test-tile3)
           tr (rotate-tile t)]
@@ -335,7 +361,22 @@ Tile 3079:
                        [x (- (dec size) y)])))
 
 (deftest test-flip-tile
+  (testing "xform"
+    (let [{xform :transform} (flip-tile {:transform identity :size 3})]
+      (is (= (xform [0 0]) [0 2]))
+      (is (= (xform [1 0]) [1 2]))
+      (is (= (xform [2 0]) [2 2]))
+      (is (= (xform [0 1]) [0 1]))
+      (is (= (xform [1 1]) [1 1]))
+      (is (= (xform [2 1]) [2 1]))
+      (is (= (xform [0 2]) [0 0]))
+      (is (= (xform [1 2]) [1 0]))
+      (is (= (xform [2 2]) [2 0]))))
   (testing "single flip"
+    (let [tr (flip-tile (read-tile "Tile 3:\nABC\nDEF\nGHI"))]
+      (is (= "GHI\nDEF\nABC\n"
+             (tile-pixels tr)))))
+  (testing "single flip borders"
     (let [t (read-tile test-tile3)
           tf (flip-tile t)]
       (is (= (get-border t :bottom) (get-border tf :top)))
@@ -405,16 +446,16 @@ Tile 3079:
 
 (defn get-adj-borders
   [[x y] [ax ay]]
-  (cond (and (= x ax) (= y (dec ay))) [:top :bottom]
+  (cond (and (= x ax) (= y (inc ay))) [:top :bottom]
         (and (= x (inc ax)) (= y ay)) [:left :right]
-        (and (= x ax) (= y (inc ay))) [:bottom :top]
+        (and (= x ax) (= y (dec ay))) [:bottom :top]
         (and (= x (dec ax)) (= y ay)) [:right :left]))
 
 (deftest test-get-adj-borders
   (let [p [0 0]
-        top [0 1]
+        top [0 -1]
         left [-1 0]
-        bottom [0 -1]
+        bottom [0 1]
         right [1 0]
         bad [2 0]]
     (is (= [:top :bottom] (get-adj-borders p top)))
@@ -442,9 +483,9 @@ Tile 3079:
         blank (read-tile "Tile 6:\n...\n...\n...")
         fit-none (rotate-tile fit-all)
         missing-one (read-tile "Tile 7:\n###\n...\n...")
-        board {[0 1] up
+        board {[0 -1] up
                [-1 0] left
-               [0 -1] bottom
+               [0 1] bottom
                [1 0] right}]
     (testing "all sides checked"
       (is (fits? board fit-all [0 0])))
@@ -466,23 +507,14 @@ Tile 3079:
            [t p])))
 
 
-(defn tile-pixels
-  [{:keys [size] :as tile}]
-  (with-out-str
-    (doseq [y (range size)]
-      (doseq [x (range size)]
-        (print (get-pixel tile [x y])))
-      (println))))
-
-
 (deftest test-find-pos
   (let [up (read-tile "Tile 1:\n...\n...\n###")
         left (read-tile "Tile 2:\n..#\n...\n...")
         bottom (read-tile "Tile 3:\n.#.\n...\n...")
         right (read-tile "Tile 4:\n#..\n...\n...")
-        board {[0 1] up
+        board {[0 -1] up
                [-1 0] left
-               [0 -1] bottom
+               [0 1] bottom
                [1 0] right}
         fits (read-tile "Tile 5:\n###\n...\n.#.")
         fit-none (read-tile "Tile 6:\n###\n###\n###")
@@ -518,9 +550,9 @@ Tile 3079:
 
 (defn find-corner
   [board corner]
-  (let [gt-or-lt (if (= corner :top-left) < >)]
+  (let [op (if (= corner :top-left) < >)]
     (reduce (fn [[mx my :as acc] [x y :as p]]
-              (if (or (gt-or-lt x mx) (gt-or-lt y my))
+              (if (or (op x mx) (op y my))
                 p
                 acc))
             (keys board))))
@@ -556,7 +588,7 @@ Tile 3079:
 
 (deftest test-solve-part1
   (is (= 20899048083289 (solve-part1 test-input)))
-  (is (= 66020135789767 (solve-part1 real-input))))
+  #_(is (= 66020135789767 (solve-part1 real-input))))
 
 (defn vec+
   [v0 v1]
@@ -598,11 +630,10 @@ Tile 3079:
      :size combined-tile-size}))
 
 
-; TODO try this again but in a more clear way
-; function to translate border to with corner at (0,0)
 (defn prepend-tile-xform
   [tile xform]
   (update tile :transform #(comp % xform)))
+
 
 (defn remove-border
   [tile]
@@ -610,12 +641,17 @@ Tile 3079:
       (prepend-tile-xform #(vec+ % [1 1]))
       (update :size - 2)))
 
+
 (deftest test-remove-border
   (let [t (read-tile "Tile 1:\n#####\n#ABC#\n#DEF#\n#GHI#\n#####")
         tb (remove-border t)
         te (read-tile "Tile 2:\nABC\nDEF\nGHI")]
     (is (= (tile-pixels te)
-           (tile-pixels tb)))))
+           (tile-pixels tb))))
+  (let [t1951 (read-tile "Tile 1951:\n#.##...##.\n#.####...#\n.....#..##\n#...######\n.##.#....#\n.###.#####\n###.##.##.\n.###....#.\n..#.#..#.#\n#...##.#..")
+        expected ".#.#..#.\n###....#\n##.##.##\n###.####\n##.#....\n...#####\n....#..#\n.####...\n"]
+    (is (= (-> t1951 flip-tile remove-border tile-pixels)
+           expected))))
 
 (defn prep-board
   "Translates the board coordinates so the top-left is at [0 0].
@@ -626,6 +662,22 @@ Tile 3079:
           (map (juxt (comp (partial vec+ offset) key)
                      (comp remove-border val)))
           board)))
+
+(deftest test-prep-board
+  (let [board (-> test-input read-input solve-puzzle)
+        ordered-ids (fn [b]
+                      (let [[min-x min-y] (find-corner b :top-left) 
+                            [max-x max-y] (find-corner b :bottom-right)]
+                        (mapcat (fn [y]
+                                  (map (fn [x]
+                                         (get-in b [[x y] :id]))
+                                       (range min-x (inc max-x))))
+                                (range min-y (inc max-y)))))
+        pd-board (prep-board board)
+        top-left (find-corner pd-board :top-left)]
+    (is (= [0 0] top-left))
+    (is (= (ordered-ids board)
+           (ordered-ids pd-board)))))
 
 
 #_(convert-board-to-tile (prep-board (solve-puzzle (read-input test-input))))
@@ -677,62 +729,123 @@ Tile 3079:
 ...###...##...#...#..###")
 
 
-(deftest test-convert-board-to-tile
-  #_(is (some #(= test-combined-pixels (tile-pixels %))
-            (-> test-input
-                read-input
-                solve-puzzle
-                prep-board
-                convert-board-to-tile
-                all-orientations))))
+(deftest test-convert-board-to-tile 
+  (let [flip-board (fn [b]
+                     (reduce (fn [b2 [[x y] tile]]
+                               (assoc b2 [x (- 2 y)] (flip-tile tile)))
+                             {}
+                             b))]
+    (is (= test-combined-pixels)
+        (-> (read-input test-input)
+            solve-puzzle
+            flip-board ; my solution ended up flipped from the example
+            prep-board
+            convert-board-to-tile
+            tile-pixels
+            string/trim))))
 
 
-(doseq [t (-> test-input
-                read-input
-                solve-puzzle
-                prep-board
-                convert-board-to-tile
-                all-orientations)]
-  (println (tile-pixels t))
-  (println))
+(def monster-template
+  "                  #
+#    ##    ##    ###
+ #  #  #  #  #  #")
 
 
-
-#_(->> test-input
-    read-input
-    solve-puzzle
-    prep-board
-    (map (fn [[k v]]
-           [k (:id v)]))
-    clojure.pprint/pprint
-    )
-
-(def solved1 (-> test-input read-input solve-puzzle))
-
-(let [t1951 ".#.#..#.
-###....#
-##.##.##
-###.####
-##.#....
-...#####
-....#..#
-.####..."
-      indexed (reduce (fn [m t]
-                        (assoc m (:id t) t)
-                        )
-                      {}
-                      (vals (prep-board solved1)))
-      t (get indexed 1951)
-      ]
-  (println (flip-tile t))
-  )
+(def monster-coords
+  (into [] 
+        (comp (map-indexed (fn [y line]
+                             (map-indexed (fn [x c]
+                                            (if (= c \#)
+                                              [x y]))
+                                          line)))
+              cat
+              (remove nil?))
+        (string/split-lines monster-template)))
 
 
-;.####...
-;....#..#
-;...#####
-;##.#....
-;###.####
-;##.##.##
-;###....#
-;.#.#..#.
+(defn monster-at?
+  [tile coord]
+  (every? (fn [c]
+            (= \# (get-pixel tile (vec+ coord c))))
+          monster-coords))
+
+
+(def test-monster-tile 
+  "Tile 42:
+......................
+......................
+......................
+...................#..
+.#....##....##....###.
+..#..#..#..#..#..#....
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................
+......................")
+
+
+(deftest test-monster-at?
+  (let [t (read-tile test-monster-tile)]
+    (is (not (monster-at? t [0 0])))
+    (is (monster-at? t [1 3]))))
+
+
+(defn write-pixel
+  [tile [x y] pixel]
+  (assoc-in tile [:pixels y x] pixel))
+
+
+(defn mark-monsters-at
+  [tile pos]
+  (reduce (fn [t p]
+            (write-pixel t (vec+ pos p) \0))
+          tile
+          monster-coords))
+
+
+(defn mark-monsters
+  [{:keys [size] :as tile}]
+  (reduce (fn [t pos]
+            (if (monster-at? tile pos)
+              (mark-monsters-at t pos)
+              t))
+          tile
+          (for [y (range size) x (range size)] [x y])))
+
+
+(deftest test-mark-monsters
+  (let [t (read-tile test-monster-tile)
+        tr (rotate-tile t)]
+    (is (every? #(not= \# %)
+                (tile-pixels (mark-monsters t))))
+    (is (tile-pixels tr)
+        (tile-pixels (mark-monsters tr)))))
+
+
+(defn roughness
+  [t]
+  (-> t 
+      mark-monsters
+      tile-pixels
+      frequencies
+      (get \# 0)))
+
+
+(map roughness (-> test-input
+                   read-input
+                   solve-puzzle
+                   prep-board
+                   convert-board-to-tile
+                   all-orientations))
