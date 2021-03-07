@@ -529,35 +529,6 @@ Tile 3079:
   (mapv #(* s %) v))
 
 
-(defn combine-tiles 
-  [board]
-  (let [tile-size (-> board first val :size)
-        [min-x min-y :as top-left] (find-corner board :top-left)
-        [max-x max-y] (find-corner board :bottom-right)
-        board-width (- (inc max-x) min-x)
-        board-height (- (inc max-y) min-y)
-        new-tile-size (- tile-size 2)
-        combined-tile-size (* new-tile-size board-height)
-        pixel-array (make-array Character/TYPE
-                                combined-tile-size 
-                                combined-tile-size)
-        tile-offset (vec-scale top-left -1)]
-    (assert (= board-width board-height))
-    (doseq [[tile-coord tile] board]
-      (doseq [y (range 1 (inc new-tile-size))]
-        (doseq [x (range 1 (inc new-tile-size))]
-          (let [[ax ay] (-> tile-coord
-                            (vec+ tile-offset)
-                            (vec-scale new-tile-size)
-                            (vec+ [x y])
-                            (vec+ [-1 -1]))]
-            (aset pixel-array ay ax (get-pixel tile [x y]))))))
-    {:id -1
-     :pixels (mapv vec pixel-array)
-     :transform identity
-     :size combined-tile-size}))
-
-
 (defn prepend-tile-xform
   [tile xform]
   (update tile :transform #(comp % xform)))
