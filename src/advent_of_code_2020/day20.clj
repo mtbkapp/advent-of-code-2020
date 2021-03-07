@@ -1,4 +1,3 @@
-
 (ns advent-of-code-2020.day20
   (:require [clojure.java.io :as io]
             [clojure.spec.alpha :as spec]
