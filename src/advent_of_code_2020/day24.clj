@@ -1,6 +1,9 @@
 (ns advent-of-code-2020.day24
-  (:require [clojure.test :refer :all]
-            [clojure.spec.alpha :as spec]))
+  (:require [clojure.java.io :as io]
+            [clojure.set :as sets]
+            [clojure.spec.alpha :as spec]
+            [clojure.string :as string]
+            [clojure.test :refer :all]))
 
 
 ; https://en.wikipedia.org/wiki/Hexagonal_Efficient_Coordinate_System#Description
@@ -11,36 +14,37 @@
             :col int?))
 
 
-(defmulti move (fn [dir coord] dir))
+(def move nil)
+(defmulti move (fn [coord dir] dir))
 
 (defmethod move :dir/west
-  [_ [a r c]]
+  [[a r c] _]
   [a r (dec c)])
 
 (defmethod move :dir/east
-  [_ [a r c]]
+  [[a r c] _]
   [a r (inc c)])
 
 (defmethod move :dir/north-east
-  [_ [a r c]]
+  [[a r c] _]
   (if (zero? a)
     [1 (dec r) c] 
     [0 r (inc c)]))
 
 (defmethod move :dir/north-west
-  [_ [a r c]]
+  [[a r c] _]
   (if (zero? a)
     [1 (dec r) (dec c)]
     [0 r c]))
 
 (defmethod move :dir/south-east
-  [_ [a r c]]
+  [[a r c] _]
   (if (zero? a)
     [1 r c] 
     [0 (inc r) (inc c)]))
 
 (defmethod move :dir/south-west
-  [_ [a r c]]
+  [[a r c] _]
   (if (zero? a)
     [1 r (dec c)] 
     [0 (inc r) c]))
@@ -62,3 +66,124 @@
     (is (= [1 1 1] (move :dir/south-west [0 1 2]))))
   
   )
+
+(def dirs
+  {"e" :dir/east
+   "se" :dir/south-east
+   "sw" :dir/south-west
+   "w" :dir/west
+   "nw" :dir/north-west
+   "ne" :dir/north-east})
+
+
+(def pattern #"(e|se|sw|w|nw|ne)")
+
+(def test-input
+  "sesenwnenenewseeswwswswwnenewsewsw
+neeenesenwnwwswnenewnwwsewnenwseswesw
+seswneswswsenwwnwse
+nwnwneseeswswnenewneswwnewseswneseene
+swweswneswnenwsewnwneneseenw
+eesenwseswswnenwswnwnwsewwnwsene
+sewnenenenesenwsewnenwwwse
+wenwwweseeeweswwwnwwe
+wsweesenenewnwwnwsenewsenwwsesesenwne
+neeswseenwwswnwswswnw
+nenwswwsewswnenenewsenwsenwnesesenew
+enewnwewneswsewnwswenweswnenwsenwsw
+sweneswneswneneenwnewenewwneswswnese
+swwesenesewenwneswnwwneseswwne
+enesenwswwswneneswsenwnewswseenwsese
+wnwnesenesenenwwnenwsewesewsesesew
+nenewswnwewswnenesenwnesewesw
+eneswnwswnwsenenwnwnwwseeswneewsenese
+neswnwewnwnwseenwseesewsenwsweewe
+wseweeenwnesenwwwswnew")
+
+
+(defn parse-line
+  [line]
+  (map (comp dirs first)
+       (re-seq pattern line)))
+
+
+(defn run-seq 
+  ([ds] (run-seq [0 0 0] ds))
+  ([start ds]
+   (reduce move start ds)))
+
+
+(defn init
+  [input]
+  (transduce
+    (map (comp run-seq parse-line))
+    (completing
+      (fn [black tile]
+        (if (contains? black tile)
+          (disj black tile)
+          (conj black tile))))
+    #{}
+    (string/split-lines input)))
+
+
+#_(part1 test-input)
+#_(part1 (slurp (io/resource "day24.txt")))
+(defn part1
+  [input]
+  (count (init input)))
+
+
+(defn tile->adj-tiles
+  [tile]
+  (into #{}
+        (map #(move tile %))
+        (vals dirs)))
+
+
+(defn to-white 
+  [black]
+  (into #{}
+        (filter (fn [bt]
+                  (let [c (->> (tile->adj-tiles bt)
+                               (filter black)
+                               (count))]
+                    (or (> c 2)
+                        (= c 0)))))
+        black))
+
+
+; there is something redundant about this solution I'd like to get rid of. But
+; I'm not clever enough right now.
+(defn adj-white
+  [black]
+  (into #{}
+        (comp (mapcat tile->adj-tiles)
+              (remove black))
+        black))
+
+
+(defn to-black
+  [black]
+  (into #{}
+        (filter (fn [wt]
+                  (->> (tile->adj-tiles wt)
+                       (filter black)
+                       (count)
+                       (= 2))))
+        (adj-white black)))
+
+
+(defn step
+  [black]
+  (sets/difference (into black (to-black black))
+                   (to-white black)))
+
+
+#_(count-at-day test-input 100)
+#_(count-at-day (slurp (io/resource "day24.txt")) 100)
+(defn count-at-day
+  [input day]
+  (->> (iterate step (init input))
+       (take (inc day))
+       (last)
+       (count)))
