@@ -1,8 +1,6 @@
 (ns advent-of-code-2020.day13
   (:require [clojure.java.io :as io]
-            [clojure.string :as string]
-            [loco.core :as loco]
-            [loco.constraints :as lc]))
+            [clojure.string :as string]))
 
 
 (def real-input (slurp (io/resource "day13.txt")))
@@ -100,9 +98,22 @@
     (if (= gcd 1)
       (mod x m))))
 
+#_(prn (read-input2 test-input))
+#_(prn (read-input2 real-input))
+(defn read-input2
+  [input]
+  (into []
+        (comp (map-indexed 
+                (fn [i bus]
+                  [i (if (not= "x" bus) (Long/valueOf bus))]))
+              (filter (comp some? second)))
+        (-> (string/split-lines input)
+            (second)
+            (string/split #","))))
 
-#_(prn (chinese-rem (:buses (read-input2 test-input))))
-#_(prn (chinese-rem (:buses (read-input2 real-input))))
+
+#_(prn (chinese-rem (read-input2 test-input)))
+#_(prn (chinese-rem (read-input2 real-input)))
 
 ; This code follows the algorithm described here:
 ; https://brilliant.org/wiki/chinese-remainder-theorem/#solving-systems-of-congruences
