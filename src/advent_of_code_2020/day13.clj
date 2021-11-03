@@ -46,93 +46,72 @@
 ; part 2
 ;
 ; find min t such that:
-; t > 939
 ; (t + 0) % 7 = 0
 ; (t + 1) % 13 = 0
 ; (t + 4) % 59 = 0
 ; (t + 6) % 31 = 0
 ; (t + 7) % 19 = 0
 
-; since 59 is the highest, adjust equations so only multiples of 59 are tested
 
-; t > 939 + 4
-; (t - 4) % 7 = 0
-; (t - 3) % 13 = 0
-; (t + 0) % 59 = 0
-; (t + 2) % 31 = 0
-; (t + 3) % 19 = 0
+; after reading a bit of https://0xdf.gitlab.io/adventofcode2020/13
+; I learned that the system of equations can be rewritten from:
+; 
+; t + i = 0 mod b , where = means congruent not equal
+; t = -i mod b
+; t = b - i mod b , cuz modular arithmetic works like that
+; 
+; so there is a system of congruences that needs to be solved.
+; t = 7 - 0 (mod 7) 
+; t = 13 - 1 (mod 13) 
+; t = 59 - 4 (mod 59) 
+; t = 31 - 6 (mod 31) 
+; t = 19 - 7 (mod 19) 
 
-(mod (+ 939 (- 59 54)) 59)
+; The same website references the Chinese Remainder Theorem.
+; The theorem uses the Euclid's extended algorithm which I found here: 
+; https://brilliant.org/wiki/modular-arithmetic/#modular-arithmetic-multiplicative-inverses
+; and translated from python to Clojure.
 
-
-; if too slow maybe something can be done with gcd 
-
-#_(prn (read-input2 test-input))
-#_(prn (read-input2 real-input))
-(defn read-input2
-  [input]
-  (let [[top bottom] (string/split-lines input)
-        buses (->> (map-indexed (fn [i bus]
-                                  [i (if (not= "x" bus) (Long/valueOf bus))]
-                                  )
-                                (string/split bottom #","))
-                   (filter (comp some? second)))]
-    {:start (Long/valueOf top)
-     :buses buses
-     :max-bus (reduce (fn [[_ x :as a] [_ y :as b]]
-                        (if (and (some? y) (< x y))
-                          b
-                          a))
-                      buses)}))
-
-(defn find-start
-  [min-t max-offset max-id]
-  (let [adjust-min-t (+ min-t max-offset)]
-    (+ adjust-min-t (- max-id (mod adjust-min-t max-id)))))
-
-
-(defn adjust-offsets
-  [max-offset buses]
-  (map (fn [[offset bus-id]]
-         [(- offset max-offset) bus-id])
-       buses))
+(defn egcd
+  [a b]
+  (loop [a a
+         b b
+         x 0
+         y 1
+         u 1
+         v 0]
+    (if (not= a 0)
+      (let [q (quot b a)
+            r (mod b a)
+            m (- x (* u q))
+            n (- y (* v q))]
+        (recur r
+               a
+               u
+               v
+               m
+               n))
+      [b x y])))
 
 
-(defn good-t-for-bus?
-  [[offset bus-id :as bus] t]
-  (zero? (mod (+ t offset) bus-id)))
+(defn mod-inv
+  [a m]
+  (let [[gcd x y] (egcd a m)]
+    (if (= gcd 1)
+      (mod x m))))
 
 
-#_(prn (solve-part2 real-input))
-#_(prn (solve-part2 test-input))
-(defn solve-part2
-  [input]
-  (let [{:keys [start buses max-bus]} (read-input2 input)
-        [max-offset max-id] max-bus
-        adj-buses (adjust-offsets max-offset buses)]
-    (loop [t (find-start start max-offset max-id)]
-      (if (every? #(good-t-for-bus? % t) adj-buses)
-        (- t max-offset)
-        (recur (+ t max-id))))))
+#_(prn (chinese-rem (:buses (read-input2 test-input))))
+#_(prn (chinese-rem (:buses (read-input2 real-input))))
 
-
-#_(loco/solution model)
-(def model
-  [(lc/$in :t 937 Integer/MAX_VALUE :bounded)
-   (lc/$= 1000 :t)
-   (lc/$= 0 (lc/$mod (lc/$+ :t 1) 13))
-   (lc/$= 0 (lc/$mod (lc/$+ :t 4) 59))
-   (lc/$= 0 (lc/$mod (lc/$+ :t 6) 31))
-   (lc/$= 0 (lc/$mod (lc/$+ :t 7) 19))])
-
-
-(try
-  (loco/solution [(lc/$in :t 937 (inc 106878100) :bounded)
-                  (lc/$= 0 (lc/$mod :t 7))
-                  (lc/$= 0 (lc/$mod (lc/$+ :t 1) 13))
-                  (lc/$= 0 (lc/$mod (lc/$+ :t 7) 19))
-                  ])
-  (catch Exception ex
-    (.printStackTrace ex)))
-
-
+; This code follows the algorithm described here:
+; https://brilliant.org/wiki/chinese-remainder-theorem/#solving-systems-of-congruences
+(defn chinese-rem
+  [buses]
+  (let [bus-ids (map second buses)
+        offsets (map first buses)
+        product (reduce * bus-ids)
+        y (map #(quot product %) bus-ids)
+        z (map (fn [yi ni] (mod-inv yi ni)) y bus-ids)
+        xs (map (fn [i bus yi zi] (* (- bus i) yi zi)) offsets bus-ids y z)]
+    (mod (reduce + xs) product)))
