@@ -69,15 +69,28 @@ Player 2:
 #_(solve-part1 (read-input test-input))
 #_(solve-part1 (read-input real-input))
 
+(defn play-round
+  [configs p1-deck p2-deck]
+  (if (and false (contains? configs [p1-deck p2-deck]))
+    {:winner :p1}
+    (if (< (peek p1-deck) (peek p2-deck))
+      {:winner :p2}
+      {:winnder :p1})))
+
+(defn recur?
+  [p1-deck p2-deck]
+  (and (<= (peek p1-deck) (count (pop p1-deck)))
+       (<= (peek p2-deck) (count (pop p2-deck)))))
 
 
-
-#_(-> (recursive-combat
-        (into clojure.lang.PersistentQueue/EMPTY [9 2 6 3 1])
-        (into clojure.lang.PersistentQueue/EMPTY [5 8 4 7 10]))
-      calc-score
-      #_(update :p1-deck seq)
-      #_(update :p2-deck seq))
+#_(as-> (recursive-combat
+            (into clojure.lang.PersistentQueue/EMPTY [9 2 6 3 1])
+            (into clojure.lang.PersistentQueue/EMPTY [5 8 4 7 10])) $
+    (do
+      (println "Score: " (calc-score $))
+      $)
+    (update $ :p1-deck seq)
+    (update $ :p2-deck seq))
 
 #_(-> (apply recursive-combat (read-input real-input))
       calc-score
@@ -85,6 +98,7 @@ Player 2:
 
 ; doesn't finish?
 ; bug? need to check configs in another place for duplicate?
+; ok now it finishes but it's incorrect
 (defn recursive-combat
   [p1-deck p2-deck]
   (loop [configs #{}
@@ -106,16 +120,29 @@ Player 2:
             p1-deck2 (pop p1-deck)
             p2-card (peek p2-deck)
             p2-deck2 (pop p2-deck)
-            winner (if (and (<= p1-card (count p1-deck2))
-                            (<= p2-card (count p2-deck2)))
-                     ; winner by recursion
-                     (:winner (recursive-combat p1-deck2 p2-deck2))
-                     ; winner by card value
-                     (if (< p2-card p1-card) :p1 :p2))
+            winner (if (contains? configs [p1-deck p2-deck])
+                     :p1
+                     (if (and (<= p1-card (count p1-deck2))
+                              (<= p2-card (count p2-deck2)))
+                       ; winner by recursion
+                       (:winner (recursive-combat p1-deck2 p2-deck2))
+                       ; winner by card value
+                       (if (< p2-card p1-card) :p1 :p2)))
             config2 (conj configs [p1-deck p2-deck])]
         (if (= :p1 winner)
           (recur config2 (into p1-deck2 [p1-card p2-card]) p2-deck2)
-          (recur config2 p1-deck2 (into p2-deck2 [p2-card p1-card])))))))
+          (recur config2 p1-deck2 (into p2-deck2 [p2-card p1-card]))))
+      #_(let [winner (if (recur? p1-deck p2-deck)
+                     (:winner (recursive-combat (pop p1-deck) (pop p2-deck)))
+                     (:winner (play-round configs p1-deck p2-deck)))
+            config2 (conj configs [p1-deck p2-deck])]
+        (if (= :p1 winner)
+          (recur config2
+                 (into (pop p1-deck) [(peek p1-deck) (peek p2-deck)])
+                 (pop p2-deck))
+          (recur config2
+                 (pop p1-deck)
+                 (into (pop p2-deck) [(peek p2-deck) (peek p1-deck)])))))))
 
 (defn calc-score
   [{:keys [winner p1-deck p2-deck]}]
